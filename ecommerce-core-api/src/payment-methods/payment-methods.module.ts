@@ -1,6 +1,5 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { MediaModule } from '../media/media.module';
-import { PlatformModule } from '../platform/platform.module';
 import { StorefrontModule } from '../storefront/storefront.module';
 import {
   MerchantPaymentMethodsController,
@@ -11,7 +10,6 @@ import { PaymentMethodsRepository } from './payment-methods.repository';
 import { PaymentMethodsService } from './payment-methods.service';
 
 @Module({
-  imports: [MediaModule, forwardRef(() => StorefrontModule), forwardRef(() => PlatformModule)],
   controllers: [
     PlatformPaymentMethodsController,
     MerchantPaymentMethodsController,

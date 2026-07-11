@@ -279,14 +279,14 @@ export class AbandonedCartsService {
     const apiBase = this.configService
       .get<string>('API_PUBLIC_BASE_URL', 'http://localhost:3000')
       .replace(/\/$/, '');
-    return `${apiBase}/sf/recovery/${encodeURIComponent(token)}?store=${encodeURIComponent(storeSlug)}`;
+    return `${apiBase}/app/recovery/${encodeURIComponent(token)}?store=${encodeURIComponent(storeSlug)}`;
   }
 
   private buildApiOpenTrackingUrl(storeSlug: string, token: string): string {
     const apiBase = this.configService
       .get<string>('API_PUBLIC_BASE_URL', 'http://localhost:3000')
       .replace(/\/$/, '');
-    return `${apiBase}/sf/recovery/${encodeURIComponent(token)}/open?store=${encodeURIComponent(storeSlug)}`;
+    return `${apiBase}/app/recovery/${encodeURIComponent(token)}/open?store=${encodeURIComponent(storeSlug)}`;
   }
 
   private buildStorefrontRecoveryUrl(input: {

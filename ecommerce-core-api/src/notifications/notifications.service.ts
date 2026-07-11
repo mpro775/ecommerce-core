@@ -336,7 +336,7 @@ export class NotificationsService {
     await this.emitPlatformUnreadCount();
     this.notificationsGateway.emitNotificationRead({
       notificationId,
-      recipientType: 'platform',
+      recipientType: 'store',
     });
   }
 
@@ -372,7 +372,7 @@ export class NotificationsService {
     const updated = await this.notificationsRepository.markAllReadForPlatform();
     await this.emitPlatformUnreadCount();
     this.notificationsGateway.emitNotificationRead({
-      recipientType: 'platform',
+      recipientType: 'store',
     });
     return { updated };
   }
@@ -462,9 +462,7 @@ export class NotificationsService {
     if (definition?.recipientType === 'customer') {
       return 'customer';
     }
-    if (definition?.recipientType === 'platform') {
-      return 'platform';
-    }
+
     return 'system';
   }
 
@@ -677,9 +675,7 @@ export class NotificationsService {
       return;
     }
 
-    if (row.recipient_type === 'platform') {
-      await this.emitPlatformUnreadCount();
-    }
+
   }
 
   private async emitStoreUnreadCount(currentUser: AuthUser): Promise<void> {
@@ -708,7 +704,7 @@ export class NotificationsService {
 
   private async emitPlatformUnreadCount(): Promise<void> {
     this.notificationsGateway.emitUnreadCount({
-      recipientType: 'platform',
+      recipientType: 'store',
       count: await this.notificationsRepository.countUnreadForPlatform(),
     });
   }

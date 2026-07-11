@@ -2,9 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type { AuthUser } from '../auth/interfaces/auth-user.interface';
 import type { BootstrapStorePagesDto } from './dto/bootstrap-store-pages.dto';
 import type { CreateStorePageDto } from './dto/create-store-page.dto';
-import type { SeoAutoFixDto, SeoSuggestionDto } from './dto/seo-suggestion.dto';
 import type { UpdateStorePageDto } from './dto/update-store-page.dto';
-import type { UpdateStoreSeoSettingsDto } from './dto/update-store-seo-settings.dto';
 import {
   SeoRepository,
   type SeoCategoryRecord,
@@ -16,6 +14,44 @@ import {
 } from './seo.repository';
 
 type StoreScopedUser = Pick<AuthUser, 'storeId'>;
+
+interface UpdateStoreSeoSettingsDto {
+  homeSeoTitleAr?: string;
+  homeSeoTitleEn?: string;
+  homeSeoDescriptionAr?: string;
+  homeSeoDescriptionEn?: string;
+  defaultSeoTitleAr?: string;
+  defaultSeoTitleEn?: string;
+  defaultSeoDescriptionAr?: string;
+  defaultSeoDescriptionEn?: string;
+  defaultOgImage?: string;
+  defaultTwitterImage?: string;
+  keywords?: string[];
+  googleSiteVerification?: string;
+  googleAnalyticsMeasurementId?: string;
+  bingSiteVerification?: string;
+  facebookDomainVerification?: string;
+  seoIndexEnabled?: boolean;
+  seoFollowDefault?: boolean;
+  canonicalBaseUrl?: string;
+  defaultLanguage?: 'ar' | 'en';
+  supportedLanguages?: Array<'ar' | 'en'>;
+}
+
+interface SeoSuggestionDto {
+  targetType: 'home' | 'product' | 'category' | 'page';
+  targetId?: string;
+  language: 'ar' | 'en' | 'both';
+}
+
+interface SeoAutoFixDto {
+  scope?: 'all' | 'home' | 'products' | 'categories' | 'pages';
+  targetId?: string;
+  issueType?: string;
+  language?: 'ar' | 'en' | 'both';
+  overwriteExisting?: boolean;
+  overwriteMode?: 'missing_only' | 'improve_weak' | 'replace_all';
+}
 
 type SeoScope = 'all' | 'home' | 'products' | 'categories' | 'pages';
 type SeoTargetType = 'home' | 'product' | 'category' | 'page' | 'integration';

@@ -1,16 +1,14 @@
 {
-  "name": "kaleem-api",
+  "name": "general-ecommerce-api",
   "version": "0.1.0",
   "private": true,
-  "description": "Kaleem Store SaaS - Backend API",
+  "description": "General Ecommerce - Backend API",
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "clean:dist": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true});fs.rmSync('tsconfig.build.tsbuildinfo',{force:true});fs.rmSync('tsconfig.tsbuildinfo',{force:true});\"",
     "worker:outbox": "tsx src/workers/outbox.worker.ts",
     "worker:notifications": "tsx src/workers/notifications.worker.ts",
     "worker:abandoned-carts": "tsx src/workers/abandoned-carts.worker.ts",
-    "worker:subscriptions": "tsx src/workers/subscriptions.worker.ts",
-    "worker:domain-ssl-sync": "tsx src/workers/domain-ssl-sync.worker.ts",
     "worker:store-deletion-purge": "tsx src/workers/store-deletion-purge.worker.ts",
     "check:mojibake": "node scripts/check-mojibake.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -23,13 +21,10 @@
     "migrate:up": "node ./scripts/migrate.mjs up",
     "migrate:down": "node ./scripts/migrate.mjs down",
     "seed:run": "node ./scripts/seed.mjs",
-    "platform:seed-admin": "node ./scripts/platform-seed-admin.mjs",
     "queue:health": "node ./scripts/queue-health.mjs",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "sast": "npm audit --omit=dev --audit-level=high",
-    "guard:legacy-platform": "node scripts/guard-no-legacy-platform.mjs",
-    "guard:legacy-theme-templates": "node scripts/guard-no-legacy-theme-templates.mjs"
+    "sast": "npm audit --omit=dev --audit-level=high"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.901.0",

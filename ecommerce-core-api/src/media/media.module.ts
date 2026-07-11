@@ -1,17 +1,13 @@
 import { Module } from '@nestjs/common';
-import { PlatformModule } from '../platform/platform.module';
-import { SaasModule } from '../saas/saas.module';
+import { StoreCapabilitiesModule } from '../store-capabilities/store-capabilities.module';
 import { SecurityModule } from '../security/security.module';
 import { MediaController } from './media.controller';
-import { PlatformMediaController } from './platform-media.controller';
 import { MediaRepository } from './media.repository';
 import { S3StorageAdapter } from './s3-storage.adapter';
 import { MediaService } from './media.service';
 import { STORAGE_ADAPTER } from './storage.adapter';
 
 @Module({
-  imports: [SecurityModule, SaasModule, PlatformModule],
-  controllers: [MediaController, PlatformMediaController],
   providers: [
     MediaService,
     MediaRepository,

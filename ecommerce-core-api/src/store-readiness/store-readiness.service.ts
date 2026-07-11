@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+﻿import { BadRequestException, Injectable } from '@nestjs/common';
 import type { AuthUser } from '../auth/interfaces/auth-user.interface';
 import type { RequestContextData } from '../common/utils/request-context.util';
 import { SeoService } from '../seo/seo.service';
@@ -13,28 +13,21 @@ import type {
 } from './store-readiness.types';
 
 const SECTION_WEIGHTS: Record<string, number> = {
-  identity: 15,
-  theme: 15,
-  catalog: 25,
-  checkout: 25,
-  trust: 10,
-  seo: 10,
+  identity: 20,
+  catalog: 35,
+  checkout: 30,
+  trust: 15,
 };
 
 const SKIPPABLE_STEPS = new Set([
   'identity.logo',
   'identity.description',
   'identity.working_hours',
-  'theme.primary_color',
-  'theme.hero_or_banner',
-  'theme.preview_checked',
   'catalog.brands',
   'catalog.attributes',
   'catalog.featured_products',
   'catalog.product_images',
   'trust.published_pages',
-  'seo.home_meta',
-  'seo.og_image',
 ]);
 
 @Injectable()
@@ -101,7 +94,7 @@ export class StoreReadinessService {
     reason?: string,
   ): Promise<StoreReadinessResponse> {
     if (!SKIPPABLE_STEPS.has(stepKey)) {
-      throw new BadRequestException('هذه الخطوة لا يمكن تخطيها.');
+      throw new BadRequestException('This setup step cannot be skipped.');
     }
     await this.readinessRepository.skipStep(currentUser.storeId, stepKey, reason?.trim() || null);
     return this.getReadiness(currentUser);
@@ -120,7 +113,7 @@ export class StoreReadinessService {
     if (action === 'enable_cod') {
       const enabled = await this.readinessRepository.enableCodPayment(currentUser.storeId);
       if (!enabled) {
-        throw new BadRequestException('لا توجد طريقة دفع عند الاستلام مفعلة من المنصة.');
+        throw new BadRequestException('No enabled cash-on-delivery payment method is available.');
       }
       return this.getReadiness(currentUser);
     }
@@ -130,11 +123,11 @@ export class StoreReadinessService {
       await this.shippingService.quickSetup(
         currentUser,
         {
-          city: store?.city || 'المدينة',
+          city: store?.city || 'City',
           enableLocalDelivery: true,
           localDeliveryFee: 0,
           enablePickup: true,
-          pickupAddress: store?.address || store?.address_details || store?.city || 'موقع المتجر',
+          pickupAddress: store?.address || store?.address_details || store?.city || 'Store location',
         },
         context,
       );
@@ -146,338 +139,41 @@ export class StoreReadinessService {
       return this.getReadiness(currentUser);
     }
 
-    if (action === 'seo_auto_fix') {
-      await this.seoService.autoFix(currentUser, {
-        scope: 'home',
-        language: 'both',
-        overwriteExisting: false,
-        overwriteMode: 'missing_only',
-      });
-      return this.getReadiness(currentUser);
-    }
-
-    throw new BadRequestException('إجراء غير معروف.');
+    throw new BadRequestException('Unknown quick action.');
   }
 
   private buildSections(facts: StoreReadinessFacts): SetupSection[] {
     return [
-      this.section('identity', 'هوية المتجر', [
-        this.step(
-          'identity.store_name',
-          'اسم المتجر',
-          'اسم واضح يظهر للعملاء.',
-          facts.name,
-          'blocking',
-          false,
-          'إكمال بيانات المتجر',
-          'store',
-        ),
-        this.step(
-          'identity.logo',
-          'شعار المتجر',
-          'إضافة شعار يزيد ثقة العميل.',
-          facts.logo_url,
-          'warning',
-          true,
-          'إضافة شعار',
-          'store',
-        ),
-        this.step(
-          'identity.description',
-          'وصف مختصر',
-          'وصف يشرح نشاط المتجر.',
-          facts.description,
-          'missing',
-          true,
-          'إضافة وصف',
-          'store',
-        ),
-        this.step(
-          'identity.phone',
-          'رقم التواصل',
-          'رقم هاتف أو واتساب للتواصل.',
-          facts.phone,
-          'warning',
-          false,
-          'إضافة رقم',
-          'store',
-        ),
-        this.step(
-          'identity.city',
-          'مدينة المتجر',
-          'تحديد المدينة يساعد في التوصيل.',
-          facts.city,
-          'warning',
-          false,
-          'تحديد المدينة',
-          'store',
-        ),
-        this.step(
-          'identity.currency',
-          'العملة',
-          'عملة البيع الأساسية مضبوطة.',
-          facts.currency_code,
-          'blocking',
-          false,
-          'ضبط العملة',
-          'store',
-        ),
-        this.step(
-          'identity.working_hours',
-          'ساعات العمل',
-          'تحديد أوقات استقبال الطلبات.',
-          facts.working_hours_count > 0,
-          'missing',
-          true,
-          'تحديد ساعات العمل',
-          'store',
-        ),
+      this.section('identity', 'Store identity', [
+        this.step('identity.store_name', 'Store name', 'A clear public store name.', facts.name, 'blocking', false, 'Complete store settings', 'store'),
+        this.step('identity.logo', 'Logo', 'A store logo improves trust.', facts.logo_url, 'warning', true, 'Add logo', 'store'),
+        this.step('identity.description', 'Description', 'Short description of the store.', facts.description, 'missing', true, 'Add description', 'store'),
+        this.step('identity.phone', 'Contact phone', 'A support phone or WhatsApp number.', facts.phone, 'warning', false, 'Add phone', 'store'),
+        this.step('identity.city', 'City', 'The city helps fulfillment setup.', facts.city, 'warning', false, 'Set city', 'store'),
+        this.step('identity.currency', 'Currency', 'The selling currency is configured.', facts.currency_code, 'blocking', false, 'Set currency', 'store'),
+        this.step('identity.working_hours', 'Working hours', 'Order handling hours are configured.', facts.working_hours_count > 0, 'missing', true, 'Set working hours', 'store'),
       ]),
-      this.section('theme', 'المظهر والقالب', [
-        this.step(
-          'theme.template_selected',
-          'اختيار قالب',
-          'اختيار قالب مناسب للمتجر.',
-          facts.theme_template_id,
-          'blocking',
-          false,
-          'اختيار قالب',
-          'themes',
-        ),
-        this.step(
-          'theme.template_published',
-          'نشر القالب',
-          'نشر التصميم ليظهر للزوار.',
-          facts.theme_count > 0,
-          'blocking',
-          false,
-          'نشر القالب',
-          'themes',
-        ),
-        this.step(
-          'theme.primary_color',
-          'ألوان الهوية',
-          'تخصيص اللون الأساسي.',
-          facts.theme_template_id,
-          'missing',
-          true,
-          'تخصيص التصميم',
-          'themes',
-        ),
-        this.step(
-          'theme.hero_or_banner',
-          'البانر الرئيسي',
-          'تجهيز مساحة العرض الأولى.',
-          facts.logo_url,
-          'warning',
-          true,
-          'تخصيص الواجهة',
-          'themes',
-        ),
-        this.step(
-          'theme.preview_checked',
-          'معاينة المتجر',
-          'افتح المتجر وتأكد من شكله.',
-          false,
-          'missing',
-          true,
-          'معاينة المتجر',
-          'themes',
-        ),
+      this.section('catalog', 'Catalog', [
+        this.step('catalog.categories', 'Categories', 'At least one category exists.', facts.category_count > 0, 'blocking', false, 'Add categories', 'categories'),
+        this.step('catalog.categories_visible', 'Visible categories', 'At least one category is active.', facts.visible_category_count > 0, 'missing', false, 'Activate categories', 'categories'),
+        this.step('catalog.brands', 'Brands', 'Add brands when relevant.', facts.brand_count > 0, 'missing', true, 'Add brands', 'brands'),
+        this.step('catalog.attributes', 'Attributes', 'Attributes such as color or size.', facts.attribute_count > 0, 'missing', true, 'Add attributes', 'attributes'),
+        this.step('catalog.products', 'Products', 'At least one product exists.', facts.product_count > 0, 'blocking', false, 'Add products', 'products'),
+        this.step('catalog.products_visible', 'Visible products', 'Products are published for customers.', facts.visible_product_count > 0, 'blocking', false, 'Publish products', 'products'),
+        this.step('catalog.product_prices', 'Product prices', 'All sellable products have prices.', facts.product_count > 0 && facts.priced_product_count >= facts.product_count, 'blocking', false, 'Complete prices', 'products'),
+        this.step('catalog.products_have_categories', 'Product categories', 'Products are organized into categories.', facts.product_count > 0 && facts.products_with_category_count >= facts.product_count, 'missing', false, 'Assign categories', 'products'),
+        this.step('catalog.product_images', 'Product images', 'Products have clear images.', facts.product_count > 0 && facts.products_with_image_count >= facts.product_count, 'warning', true, 'Add images', 'products'),
+        this.step('catalog.featured_products', 'Featured products', 'Choose products for app highlights.', facts.featured_product_count > 0, 'missing', true, 'Feature products', 'products'),
       ]),
-      this.section('catalog', 'تجهيز الكتالوج', [
-        this.step(
-          'catalog.categories',
-          'التصنيفات',
-          'تصنيف واحد على الأقل.',
-          facts.category_count > 0,
-          'blocking',
-          false,
-          'إضافة تصنيفات',
-          'categories',
-        ),
-        this.step(
-          'catalog.categories_visible',
-          'تصنيفات ظاهرة',
-          'التصنيفات مفعلة للعرض.',
-          facts.visible_category_count > 0,
-          'missing',
-          false,
-          'تفعيل التصنيفات',
-          'categories',
-        ),
-        this.step(
-          'catalog.brands',
-          'العلامات التجارية',
-          'أضف العلامات عند الحاجة.',
-          facts.brand_count > 0,
-          'missing',
-          true,
-          'إضافة علامات',
-          'brands',
-        ),
-        this.step(
-          'catalog.attributes',
-          'الخصائص',
-          'خصائص مثل اللون والمقاس.',
-          facts.attribute_count > 0,
-          'missing',
-          true,
-          'إضافة خصائص',
-          'attributes',
-        ),
-        this.step(
-          'catalog.products',
-          'المنتجات',
-          'منتج واحد على الأقل.',
-          facts.product_count > 0,
-          'blocking',
-          false,
-          'إضافة منتجات',
-          'products',
-        ),
-        this.step(
-          'catalog.products_visible',
-          'منتجات ظاهرة',
-          'منتجات منشورة وظاهرة للعملاء.',
-          facts.visible_product_count > 0,
-          'blocking',
-          false,
-          'نشر المنتجات',
-          'products',
-        ),
-        this.step(
-          'catalog.product_prices',
-          'أسعار المنتجات',
-          'كل منتج قابل للبيع له سعر.',
-          facts.product_count > 0 && facts.priced_product_count >= facts.product_count,
-          'blocking',
-          false,
-          'إكمال الأسعار',
-          'products',
-        ),
-        this.step(
-          'catalog.products_have_categories',
-          'ربط المنتجات بالتصنيفات',
-          'تنظيم المنتجات داخل تصنيفات.',
-          facts.product_count > 0 && facts.products_with_category_count >= facts.product_count,
-          'missing',
-          false,
-          'ربط التصنيفات',
-          'products',
-        ),
-        this.step(
-          'catalog.product_images',
-          'صور المنتجات',
-          'صور واضحة للمنتجات.',
-          facts.product_count > 0 && facts.products_with_image_count >= facts.product_count,
-          'warning',
-          true,
-          'إضافة صور',
-          'products',
-        ),
-        this.step(
-          'catalog.featured_products',
-          'منتجات مميزة',
-          'اختيار منتجات للواجهة.',
-          facts.featured_product_count > 0,
-          'missing',
-          true,
-          'تمييز منتجات',
-          'products',
-        ),
+      this.section('checkout', 'Checkout and fulfillment', [
+        this.step('checkout.payment_method', 'Payment method', 'At least one payment method is enabled.', facts.enabled_payment_count > 0, 'blocking', false, 'Enable COD', 'payments', 'enable_cod'),
+        this.step('checkout.payment_configured', 'Payment details', 'Manual transfer details are complete.', facts.incomplete_payment_count === 0, 'blocking', false, 'Complete payment details', 'payments'),
+        this.step('checkout.shipping_method', 'Shipping or pickup', 'Shipping or pickup is enabled.', facts.active_shipping_method_count > 0, 'blocking', false, 'Quick fulfillment setup', 'shipping', 'quick_fulfillment'),
+        this.step('checkout.final_checkout_test', 'Checkout test', 'The store can receive a real order.', facts.enabled_payment_count > 0 && facts.active_shipping_method_count > 0 && facts.visible_product_count > 0, 'blocking', false, 'Open orders', 'orders'),
       ]),
-      this.section('checkout', 'الدفع والتوصيل', [
-        this.step(
-          'checkout.payment_method',
-          'طريقة دفع',
-          'تفعيل طريقة دفع واحدة على الأقل.',
-          facts.enabled_payment_count > 0,
-          'blocking',
-          false,
-          'تفعيل الدفع عند الاستلام',
-          'payments',
-          'enable_cod',
-        ),
-        this.step(
-          'checkout.payment_configured',
-          'بيانات الدفع مكتملة',
-          'بيانات الحوالات أو الحسابات مكتملة.',
-          facts.incomplete_payment_count === 0,
-          'blocking',
-          false,
-          'إكمال بيانات الدفع',
-          'payments',
-        ),
-        this.step(
-          'checkout.shipping_method',
-          'طريقة توصيل أو استلام',
-          'تفعيل التوصيل أو الاستلام من المتجر.',
-          facts.active_shipping_method_count > 0,
-          'blocking',
-          false,
-          'تفعيل التوصيل والاستلام',
-          'shipping',
-          'quick_fulfillment',
-        ),
-      ]),
-      this.section('trust', 'صفحات الثقة والسياسات', [
-        this.step(
-          'trust.pages',
-          'الصفحات الأساسية',
-          'إنشاء صفحات من نحن والتواصل والسياسات.',
-          facts.trust_page_count >= 4,
-          'missing',
-          false,
-          'إنشاء الصفحات',
-          'storePages',
-          'bootstrap_pages',
-        ),
-        this.step(
-          'trust.published_pages',
-          'نشر صفحات الثقة',
-          'الصفحات جاهزة للزوار.',
-          facts.published_trust_page_count >= 4,
-          'warning',
-          true,
-          'مراجعة الصفحات',
-          'storePages',
-        ),
-      ]),
-      this.section('seo', 'SEO والاختبار النهائي', [
-        this.step(
-          'seo.home_meta',
-          'عنوان ووصف البحث',
-          'بيانات ظهور الصفحة الرئيسية في نتائج البحث.',
-          facts.home_seo_ready,
-          'warning',
-          true,
-          'إصلاح SEO تلقائياً',
-          'seo',
-          'seo_auto_fix',
-        ),
-        this.step(
-          'seo.og_image',
-          'صورة المشاركة',
-          'صورة تظهر عند مشاركة رابط المتجر.',
-          facts.default_og_image_ready,
-          'warning',
-          true,
-          'إضافة صورة مشاركة',
-          'seo',
-        ),
-        this.step(
-          'seo.final_checkout_test',
-          'اختبار الطلب',
-          'تأكد من إمكانية تنفيذ طلب فعلي.',
-          facts.enabled_payment_count > 0 &&
-            facts.active_shipping_method_count > 0 &&
-            facts.visible_product_count > 0,
-          'blocking',
-          false,
-          'فتح الطلبات',
-          'orders',
-        ),
+      this.section('trust', 'Simple content pages', [
+        this.step('trust.pages', 'Core pages', 'About, contact, policies, and FAQ pages exist.', facts.trust_page_count >= 4, 'missing', false, 'Create pages', 'storePages', 'bootstrap_pages'),
+        this.step('trust.published_pages', 'Published pages', 'Trust pages are published for customers.', facts.published_trust_page_count >= 4, 'warning', true, 'Review pages', 'storePages'),
       ]),
     ];
   }

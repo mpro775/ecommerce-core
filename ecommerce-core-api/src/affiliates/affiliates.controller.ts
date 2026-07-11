@@ -20,7 +20,6 @@ import type { AuthUser } from '../auth/interfaces/auth-user.interface';
 import { getRequestContext } from '../common/utils/request-context.util';
 import { RequirePermissions } from '../rbac/decorators/permissions.decorator';
 import { PermissionsGuard } from '../rbac/guards/permissions.guard';
-import { FeatureGuard, RequireFeature } from '../saas/guards/limits.guard';
 import { TenantGuard } from '../tenancy/guards/tenant.guard';
 import { AffiliatesService } from './affiliates.service';
 import { CreateAffiliateDto } from './dto/create-affiliate.dto';
@@ -34,8 +33,8 @@ import { UpdateAffiliateSettingsDto } from './dto/update-affiliate-settings.dto'
 @ApiTags('affiliates')
 @ApiBearerAuth()
 @Controller('affiliates')
-@RequireFeature('affiliate_program')
-@UseGuards(AccessTokenGuard, TenantGuard, PermissionsGuard, FeatureGuard)
+
+@UseGuards(AccessTokenGuard, TenantGuard, PermissionsGuard)
 export class AffiliatesController {
   constructor(private readonly affiliatesService: AffiliatesService) {}
 

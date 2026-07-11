@@ -21,12 +21,6 @@ import { AccessTokenGuard } from '../auth/guards/access-token.guard';
 import type { AuthUser } from '../auth/interfaces/auth-user.interface';
 import { getRequestContext } from '../common/utils/request-context.util';
 import { MediaService } from '../media/media.service';
-import { PLATFORM_PERMISSIONS } from '../platform/constants/platform-permissions.constants';
-import { RequirePlatformPermissions } from '../platform/decorators/require-platform-permissions.decorator';
-import { RequirePlatformStepUp } from '../platform/decorators/require-platform-step-up.decorator';
-import { PlatformAccessTokenGuard } from '../platform/guards/platform-access-token.guard';
-import { PlatformPermissionsGuard } from '../platform/guards/platform-permissions.guard';
-import { PlatformStepUpGuard } from '../platform/guards/platform-step-up.guard';
 import { RequirePermissions } from '../rbac/decorators/permissions.decorator';
 import { PermissionsGuard } from '../rbac/guards/permissions.guard';
 import { StoreResolverService } from '../storefront/store-resolver.service';
@@ -48,26 +42,20 @@ import { PaymentMethodsService } from './payment-methods.service';
 @ApiTags('platform-payment-methods')
 @ApiBearerAuth()
 @Controller('platform/payment-methods')
-@UseGuards(PlatformAccessTokenGuard, PlatformPermissionsGuard, PlatformStepUpGuard)
 export class PlatformPaymentMethodsController {
   constructor(private readonly service: PaymentMethodsService) {}
 
   @Get()
-  @RequirePlatformPermissions(PLATFORM_PERMISSIONS.paymentMethodsRead)
   async list() {
     return this.service.listPlatform();
   }
 
   @Post()
-  @RequirePlatformPermissions(PLATFORM_PERMISSIONS.paymentMethodsWrite)
-  @RequirePlatformStepUp()
   async create(@Body() body: UpsertPlatformPaymentMethodDto) {
     return this.service.createPlatform(body);
   }
 
   @Patch(':id')
-  @RequirePlatformPermissions(PLATFORM_PERMISSIONS.paymentMethodsWrite)
-  @RequirePlatformStepUp()
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpsertPlatformPaymentMethodDto,
@@ -76,8 +64,6 @@ export class PlatformPaymentMethodsController {
   }
 
   @Patch(':id/toggle')
-  @RequirePlatformPermissions(PLATFORM_PERMISSIONS.paymentMethodsWrite)
-  @RequirePlatformStepUp()
   async toggle(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: TogglePlatformPaymentMethodDto,
@@ -87,8 +73,6 @@ export class PlatformPaymentMethodsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePlatformPermissions(PLATFORM_PERMISSIONS.paymentMethodsWrite)
-  @RequirePlatformStepUp()
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.service.deletePlatform(id);
   }
@@ -144,7 +128,7 @@ export class MerchantPaymentMethodsController {
 }
 
 @ApiTags('storefront-payment-methods')
-@Controller('sf')
+@Controller('app')
 @Public()
 export class StorefrontPaymentMethodsController {
   constructor(

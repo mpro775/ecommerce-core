@@ -92,24 +92,8 @@ export class StoresRepository {
     return result.rows[0] ?? null;
   }
 
-  async findPublicByHostname(hostname: string): Promise<StorePublicRecord | null> {
-    const result = await this.databaseService.db.query<StorePublicRecord>(
-      `
-        SELECT s.id, s.name, s.slug, s.logo_url, s.favicon_url, s.currency_code,
-               COALESCE(s.status, CASE WHEN s.is_suspended THEN 'suspended' ELSE 'active' END) AS status,
-               s.is_suspended
-        FROM stores s
-        INNER JOIN store_domains d
-          ON d.store_id = s.id
-        WHERE LOWER(d.hostname) = LOWER($1)
-          AND d.status = 'active'
-          AND COALESCE(s.status, 'active') <> 'deleted'
-        LIMIT 1
-      `,
-      [hostname],
-    );
-
-    return result.rows[0] ?? null;
+  async findPublicByHostname(_hostname: string): Promise<StorePublicRecord | null> {
+    return null;
   }
 
   async findPublicById(storeId: string): Promise<StorePublicRecord | null> {

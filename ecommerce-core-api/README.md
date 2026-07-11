@@ -1,6 +1,6 @@
-# Kaleem Store — API
+# General Ecommerce API
 
-Backend API for the Kaleem Store SaaS e-commerce platform.
+Backend API for the General Ecommerce Platform.
 
 ## Tech Stack
 
@@ -50,8 +50,8 @@ npm run worker:abandoned-carts   # Abandoned cart recovery
 ## Docker
 
 ```bash
-docker build -t kaleem-api .
-docker run -p 3000:3000 --env-file .env kaleem-api
+docker build -t general-ecommerce-api .
+docker run -p 3000:3000 --env-file .env general-ecommerce-api
 ```
 
 ## Project Structure

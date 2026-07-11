@@ -1,4 +1,4 @@
-﻿import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -10,7 +10,6 @@ import { AuthModule } from './auth/auth.module';
 import { BrandsModule } from './brands/brands.module';
 import { CategoriesModule } from './categories/categories.module';
 import { DatabaseModule } from './database/database.module';
-import { DomainsModule } from './domains/domains.module';
 import { EmailModule } from './email/email.module';
 import { HealthModule } from './health/health.module';
 import { InventoryModule } from './inventory/inventory.module';
@@ -21,11 +20,10 @@ import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PromotionsModule } from './promotions/promotions.module';
 import { ProductsModule } from './products/products.module';
-import { SaasModule } from './saas/saas.module';
+import { StoreCapabilitiesModule } from './store-capabilities/store-capabilities.module';
 import { ShippingModule } from './shipping/shipping.module';
 import { StoresModule } from './stores/stores.module';
 import { StorefrontModule } from './storefront/storefront.module';
-import { ThemesModule } from './themes/themes.module';
 import { UsersModule } from './users/users.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
@@ -37,16 +35,8 @@ import { FiltersModule } from './filters/filters.module';
 import { LoyaltyModule } from './loyalty/loyalty.module';
 import { AffiliatesModule } from './affiliates/affiliates.module';
 import { SupportModule } from './support/support.module';
-import { PlatformModule } from './platform/platform.module';
-import { PlatformCoreModule } from './platform-admin/core/platform-core.module';
-import { PlatformBillingModule } from './platform-admin/billing/platform-billing.module';
-import { PlatformOperationsModule } from './platform-admin/operations/platform-operations.module';
-import { PlatformThemeTemplatesModule } from './platform-admin/theme-templates/platform-theme-templates.module';
 import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
-import { SeoModule } from './seo/seo.module';
 import { StoreReadinessModule } from './store-readiness/store-readiness.module';
-import { QaModule } from './qa/qa.module';
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -75,12 +65,10 @@ import { QaModule } from './qa/qa.module';
     AttributesModule,
     FiltersModule,
     ProductsModule,
-    SaasModule,
+    StoreCapabilitiesModule,
     MediaModule,
     ShippingModule,
     PromotionsModule,
-    ThemesModule,
-    DomainsModule,
     WebhooksModule,
     AdvancedOffersModule,
     InventoryModule,
@@ -93,15 +81,8 @@ import { QaModule } from './qa/qa.module';
     LoyaltyModule,
     AffiliatesModule,
     SupportModule,
-    PlatformModule,
-    PlatformCoreModule,
-    PlatformBillingModule,
-    PlatformOperationsModule,
-    PlatformThemeTemplatesModule,
     PaymentMethodsModule,
-    SeoModule,
     StoreReadinessModule,
-    QaModule,
   ],
   providers: [
     {

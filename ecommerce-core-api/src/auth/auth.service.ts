@@ -1,4 +1,4 @@
-﻿import {
+import {
   BadRequestException,
   ConflictException,
   Injectable,
@@ -23,7 +23,7 @@ import type { AuthResult } from './interfaces/auth-result.interface';
 import type { AccessTokenPayload } from './interfaces/access-token-payload.interface';
 import type { AuthUser, StoreRole } from './interfaces/auth-user.interface';
 import { buildRefreshToken, parseRefreshToken } from './utils/refresh-token.util';
-import { SaasService } from '../saas/saas.service';
+import { StoreCapabilitiesService } from '../store-capabilities/store-capabilities.service';
 import { EmailService } from '../email/email.service';
 import type { OwnerRegistrationChallengeResult } from './interfaces/owner-registration-challenge-result.interface';
 import { isValidStoreSlug, normalizeStoreSlug } from '../stores/constants/store-slug.constants';
@@ -37,7 +37,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly auditService: AuditService,
-    private readonly saasService: SaasService,
+    private readonly storeCapabilitiesService: StoreCapabilitiesService,
     private readonly emailService: EmailService,
   ) {}
 
@@ -121,7 +121,6 @@ export class AuthService {
       permissions: OWNER_PERMISSIONS,
     });
 
-    await this.saasService.ensureDefaultSubscription(storeId, userId);
     await this.authRepository.markOwnerRegistrationChallengeConsumed(challenge.id);
 
     const user = await this.requireUserById(userId);

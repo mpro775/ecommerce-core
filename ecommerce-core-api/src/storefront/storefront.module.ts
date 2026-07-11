@@ -9,16 +9,14 @@ import { InventoryModule } from '../inventory/inventory.module';
 import { OrdersModule } from '../orders/orders.module';
 import { PromotionsModule } from '../promotions/promotions.module';
 import { ProductsModule } from '../products/products.module';
-import { SaasModule } from '../saas/saas.module';
+import { StoreCapabilitiesModule } from '../store-capabilities/store-capabilities.module';
 import { ShippingModule } from '../shipping/shipping.module';
 import { StoresModule } from '../stores/stores.module';
-import { ThemesModule } from '../themes/themes.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { LoyaltyModule } from '../loyalty/loyalty.module';
 import { AffiliatesModule } from '../affiliates/affiliates.module';
 import { MediaModule } from '../media/media.module';
 import { PaymentMethodsModule } from '../payment-methods/payment-methods.module';
-import { PlatformThemeTemplatesModule } from '../platform-admin/theme-templates/platform-theme-templates.module';
 import { SeoModule } from '../seo/seo.module';
 import { PublicStoreController } from './public-store.controller';
 import { StoreResolverService } from './store-resolver.service';
@@ -38,14 +36,12 @@ import { StorefrontService } from './storefront.service';
     InventoryModule,
     ShippingModule,
     PromotionsModule,
-    ThemesModule,
     WebhooksModule,
     LoyaltyModule,
     AffiliatesModule,
     MediaModule,
     forwardRef(() => PaymentMethodsModule),
-    PlatformThemeTemplatesModule,
-    SaasModule,
+    StoreCapabilitiesModule,
     IdempotencyModule,
     SeoModule,
     CurrencyModule,

@@ -5,17 +5,14 @@ import { OnGatewayConnection, WebSocketGateway, WebSocketServer } from '@nestjs/
 import type { Server, Socket } from 'socket.io';
 import type { AccessTokenPayload } from '../auth/interfaces/access-token-payload.interface';
 import type { CustomerAccessTokenPayload } from '../customers/interfaces/customer-user.interface';
-import type { PlatformAccessTokenPayload } from '../platform/interfaces/platform-access-token-payload.interface';
-import { PlatformAuthRepository } from '../platform/platform-auth.repository';
 
-type NotificationRecipientType = 'store' | 'store_user' | 'customer' | 'platform';
+type NotificationRecipientType = 'store' | 'store_user' | 'customer';
 
 interface AuthenticatedSocketData {
   recipientType: NotificationRecipientType;
   storeId?: string;
   storeUserId?: string;
   customerId?: string;
-  platformAdminId?: string;
 }
 
 export interface NotificationRealtimePayload {
@@ -58,7 +55,6 @@ export class NotificationsGateway implements OnGatewayConnection {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly platformAuthRepository: PlatformAuthRepository,
   ) {}
 
   async handleConnection(client: Socket): Promise<void> {
@@ -86,7 +82,6 @@ export class NotificationsGateway implements OnGatewayConnection {
     storeId?: string;
     storeUserId?: string;
     customerId?: string;
-    platformAdminId?: string;
   }): void {
     for (const room of this.resolveRecipientRooms(input)) {
       this.server?.to(room).emit('notification.read', {
@@ -101,7 +96,6 @@ export class NotificationsGateway implements OnGatewayConnection {
     storeId?: string;
     storeUserId?: string;
     customerId?: string;
-    platformAdminId?: string;
   }): void {
     for (const room of this.resolveRecipientRooms(input)) {
       this.server?.to(room).emit('notifications.unread_count', { count: input.count });
@@ -112,14 +106,6 @@ export class NotificationsGateway implements OnGatewayConnection {
     const token = this.extractToken(client);
     if (!token) {
       throw new Error('Access token is required');
-    }
-
-    const platform = await this.tryVerifyPlatformToken(token);
-    if (platform) {
-      return {
-        recipientType: 'platform',
-        platformAdminId: platform.sub,
-      };
     }
 
     const merchant = await this.tryVerifyMerchantToken(token);
@@ -185,35 +171,6 @@ export class NotificationsGateway implements OnGatewayConnection {
     }
   }
 
-  private async tryVerifyPlatformToken(token: string): Promise<PlatformAccessTokenPayload | null> {
-    try {
-      const secret = this.configService.getOrThrow<string>('JWT_ACCESS_SECRET');
-      const payload = await this.jwtService.verifyAsync<PlatformAccessTokenPayload>(token, {
-        secret,
-      });
-      if (payload.kind !== 'platform_admin') {
-        return null;
-      }
-
-      const session = await this.platformAuthRepository.findSessionById(payload.sid);
-      if (!session || session.admin_user_id !== payload.sub || session.revoked_at) {
-        return null;
-      }
-      if (session.expires_at.getTime() <= Date.now()) {
-        return null;
-      }
-
-      const admin = await this.platformAuthRepository.findAdminById(payload.sub);
-      if (!admin || admin.status !== 'active') {
-        return null;
-      }
-
-      return payload;
-    } catch {
-      return null;
-    }
-  }
-
   private async joinRooms(client: Socket, auth: AuthenticatedSocketData): Promise<void> {
     const rooms = this.resolveRecipientRooms(auth);
     await Promise.all(rooms.map((room) => client.join(room)));
@@ -233,9 +190,6 @@ export class NotificationsGateway implements OnGatewayConnection {
     ) {
       return [`customer:${notification.storeId}:${notification.recipientCustomerId}`];
     }
-    if (notification.recipientType === 'platform') {
-      return ['platform'];
-    }
     return [];
   }
 
@@ -252,13 +206,6 @@ export class NotificationsGateway implements OnGatewayConnection {
     }
     if (input.recipientType === 'customer' && input.storeId && input.customerId) {
       return [`customer:${input.storeId}:${input.customerId}`];
-    }
-    if (input.recipientType === 'platform') {
-      const rooms = ['platform'];
-      if (input.platformAdminId) {
-        rooms.push(`platform_user:${input.platformAdminId}`);
-      }
-      return rooms;
     }
     return [];
   }

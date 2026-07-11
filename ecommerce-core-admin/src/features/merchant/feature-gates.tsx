@@ -3,7 +3,6 @@ import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { AnalyticsIcon, ArrowForwardIcon, BlockIcon } from '../../components/icons';
 import type { MerchantRequester } from './merchant-dashboard.types';
-import type { StoreSubscriptionView } from './types';
 
 export type FeatureKey =
   | 'custom_domains'
@@ -114,61 +113,41 @@ const initialGateState: FeatureGateState = {
 };
 
 export function useFeatureGate(request: MerchantRequester, featureKey: FeatureKey): FeatureGateState {
-  const [state, setState] = useState<FeatureGateState>(initialGateState);
+  void request;
+  const [state, setState] = useState<FeatureGateState>(() => {
+    const isEnabled = featureKey !== 'custom_domains';
+    return {
+      loading: false,
+      error: '',
+      isEnabled,
+      isLocked: !isEnabled,
+      lockedFeatureKey: isEnabled ? null : featureKey,
+      lockedDisplayName: isEnabled ? '' : FEATURE_DISPLAY_NAMES[featureKey],
+    };
+  });
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadSubscription(): Promise<void> {
-      setState(initialGateState);
-      try {
-        const subscription = await request<StoreSubscriptionView>('/billing/subscription', { method: 'GET' });
-        if (!isMounted) {
-          return;
-        }
-
-        const entitlement = subscription?.entitlements.find((item) => item.featureKey === featureKey);
-        const isEnabled = entitlement?.isEnabled === true;
-        setState({
-          loading: false,
-          error: '',
-          isEnabled,
-          isLocked: !isEnabled,
-          lockedFeatureKey: isEnabled ? null : featureKey,
-          lockedDisplayName: isEnabled ? '' : FEATURE_DISPLAY_NAMES[featureKey],
-        });
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-        setState({
-          loading: false,
-          error: error instanceof Error ? error.message : 'تعذر التحقق من مزايا الباقة الحالية.',
-          isEnabled: false,
-          isLocked: false,
-          lockedFeatureKey: null,
-          lockedDisplayName: '',
-        });
-      }
-    }
-
-    loadSubscription().catch(() => undefined);
-    return () => {
-      isMounted = false;
-    };
+    const isEnabled = featureKey !== 'custom_domains';
+    setState({
+      loading: false,
+      error: '',
+      isEnabled,
+      isLocked: !isEnabled,
+      lockedFeatureKey: isEnabled ? null : featureKey,
+      lockedDisplayName: isEnabled ? '' : FEATURE_DISPLAY_NAMES[featureKey],
+    });
   }, [featureKey, request]);
 
   return state;
 }
-
 export function buildFeatureUpgradeHref(featureKey: FeatureKey): string {
-  const fallback = `/merchant?tab=billing&feature=${featureKey}`;
+  const fallback = `/merchant?tab=store&feature=${featureKey}`;
   if (typeof window === 'undefined') {
     return fallback;
   }
 
   const url = new URL(window.location.href);
-  url.searchParams.set('tab', 'billing');
+  url.searchParams.set('tab', 'store');
   url.searchParams.set('feature', featureKey);
   return `${url.pathname}${url.search}${url.hash}`;
 }

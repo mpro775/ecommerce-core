@@ -595,7 +595,7 @@ export class SupportService {
 
     await this.notificationsService.createInboxNotification({
       storeId: ticket.store_id,
-      recipientType: 'platform',
+      recipientType: 'store',
       recipientStoreUserId: null,
       recipientCustomerId: null,
       type: 'support.ticket.created',
@@ -645,7 +645,7 @@ export class SupportService {
     if (message.author_type === 'store_user') {
       await this.notificationsService.createInboxNotification({
         storeId: ticket.store_id,
-        recipientType: 'platform',
+        recipientType: 'store',
         recipientStoreUserId: null,
         recipientCustomerId: null,
         type: 'support.ticket.updated',
@@ -692,7 +692,7 @@ export class SupportService {
 
     await this.notificationsService.createInboxNotification({
       storeId: ticket.store_id,
-      recipientType: 'platform',
+      recipientType: 'store',
       recipientStoreUserId: null,
       recipientCustomerId: null,
       type: status === 'resolved' ? 'support.ticket.resolved' : 'support.ticket.updated',

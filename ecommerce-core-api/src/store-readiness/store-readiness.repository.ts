@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { DatabaseService } from '../database/database.service';
 
@@ -18,8 +18,6 @@ export interface StoreReadinessFacts {
   city: string | null;
   currency_code: string | null;
   working_hours_count: number;
-  theme_count: number;
-  theme_template_id: string | null;
   category_count: number;
   visible_category_count: number;
   brand_count: number;
@@ -35,8 +33,6 @@ export interface StoreReadinessFacts {
   active_shipping_method_count: number;
   trust_page_count: number;
   published_trust_page_count: number;
-  home_seo_ready: boolean;
-  default_og_image_ready: boolean;
 }
 
 @Injectable()
@@ -51,13 +47,6 @@ export class StoreReadinessRepository {
           FROM stores
           WHERE id = $1
           LIMIT 1
-        ),
-        theme_stats AS (
-          SELECT
-            COUNT(*)::int AS theme_count,
-            MAX(published_config #>> '{template,id}') AS theme_template_id
-          FROM store_themes
-          WHERE store_id = $1
         ),
         product_stats AS (
           SELECT
@@ -140,8 +129,6 @@ export class StoreReadinessRepository {
           s.city,
           s.currency_code,
           CASE WHEN jsonb_typeof(s.working_hours) = 'array' THEN jsonb_array_length(s.working_hours) ELSE 0 END::int AS working_hours_count,
-          COALESCE(ts.theme_count, 0) AS theme_count,
-          ts.theme_template_id,
           (SELECT COUNT(*)::int FROM categories WHERE store_id = $1) AS category_count,
           (SELECT COUNT(*)::int FROM categories WHERE store_id = $1 AND is_active = TRUE) AS visible_category_count,
           (SELECT COUNT(*)::int FROM brands WHERE store_id = $1 AND is_active = TRUE) AS brand_count,
@@ -156,14 +143,8 @@ export class StoreReadinessRepository {
           COALESCE(pay.incomplete_payment_count, 0) AS incomplete_payment_count,
           COALESCE(ship.active_shipping_method_count, 0) AS active_shipping_method_count,
           COALESCE(pg.trust_page_count, 0) AS trust_page_count,
-          COALESCE(pg.published_trust_page_count, 0) AS published_trust_page_count,
-          (
-            NULLIF(s.seo_settings ->> 'homeSeoTitleAr', '') IS NOT NULL
-            AND NULLIF(s.seo_settings ->> 'homeSeoDescriptionAr', '') IS NOT NULL
-          ) AS home_seo_ready,
-          NULLIF(COALESCE(s.seo_settings ->> 'defaultOgImage', s.logo_url), '') IS NOT NULL AS default_og_image_ready
+          COALESCE(pg.published_trust_page_count, 0) AS published_trust_page_count
         FROM store_row s
-        CROSS JOIN theme_stats ts
         CROSS JOIN product_stats ps
         CROSS JOIN payment_stats pay
         CROSS JOIN shipping_stats ship

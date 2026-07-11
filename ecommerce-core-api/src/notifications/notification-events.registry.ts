@@ -11,7 +11,7 @@ export type MerchantNotificationCategory =
   | 'system';
 
 export type MerchantNotificationSeverity = 'info' | 'success' | 'warning' | 'critical';
-export type MerchantNotificationRecipientType = 'store' | 'store_user' | 'customer' | 'platform';
+export type MerchantNotificationRecipientType = 'store' | 'store_user' | 'customer';
 export type MerchantNotificationFrequency = 'instant' | 'daily_digest' | 'mute';
 
 export interface MerchantNotificationEventDefinition {

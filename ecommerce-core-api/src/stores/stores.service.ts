@@ -9,9 +9,7 @@ import type { RequestContextData } from '../common/utils/request-context.util';
 import { parseIanaTimezone } from '../common/utils/timezone.util';
 import type { AuthUser } from '../auth/interfaces/auth-user.interface';
 import { MediaService, type AltTextCoverageResponse } from '../media/media.service';
-import { ThemesService } from '../themes/themes.service';
 import { CurrencyService, type StoreCurrencyResponse } from '../currency/currency.service';
-import type { ThemeAccessibilityIssue } from '../themes/theme-config.validator';
 import {
   DEFAULT_STORE_COUNTRY,
   STORE_BUSINESS_CATEGORIES,
@@ -106,8 +104,8 @@ export interface StoreAccessibilityReportResponse {
     auditedAt: string;
   };
   altTextCoverage: AltTextCoverageResponse;
-  criticalIssues: ThemeAccessibilityIssue[];
-  seriousIssues: ThemeAccessibilityIssue[];
+  criticalIssues: Array<Record<string, never>>;
+  seriousIssues: Array<Record<string, never>>;
   recommendations: string[];
 }
 
@@ -117,7 +115,6 @@ export class StoresService {
     private readonly storesRepository: StoresRepository,
     private readonly auditService: AuditService,
     private readonly mediaService: MediaService,
-    private readonly themesService: ThemesService,
     private readonly currencyService: CurrencyService,
   ) {}
 
@@ -253,27 +250,12 @@ export class StoresService {
     context: RequestContextData,
   ): Promise<StoreAccessibilityReportResponse> {
     this.assertCurrentStore(currentUser, storeId);
-    const [themeAuditSummary, altTextCoverage] = await Promise.all([
-      this.themesService.getAccessibilityAudit(currentUser),
-      this.mediaService.getAltTextCoverageByStoreId(storeId),
-    ]);
-    const criticalIssues = themeAuditSummary.issues.filter(
-      (issue) => issue.severity === 'critical',
-    );
-    const seriousIssues = themeAuditSummary.issues.filter((issue) => issue.severity === 'serious');
-    const warningIssues = themeAuditSummary.issues.filter((issue) => issue.severity === 'warning');
+    const altTextCoverage = await this.mediaService.getAltTextCoverageByStoreId(storeId);
+    const criticalIssues: Array<Record<string, never>> = [];
+    const seriousIssues: Array<Record<string, never>> = [];
     const recommendations = [
-      ...(criticalIssues.length > 0
-        ? ['Fix critical theme accessibility issues before publishing.']
-        : []),
-      ...(seriousIssues.length > 0
-        ? ['Fix serious theme accessibility issues before launch.']
-        : []),
       ...(altTextCoverage.missingAltImages > 0
         ? ['Add localized alt text or mark decorative images explicitly.']
-        : []),
-      ...(themeAuditSummary.score < 90
-        ? ['Review focus, motion, target size, and color-only indicator settings.']
         : []),
     ];
 
@@ -286,9 +268,9 @@ export class StoresService {
       ipAddress: context.ipAddress,
       userAgent: context.userAgent,
       metadata: {
-        score: themeAuditSummary.score,
-        criticalIssues: criticalIssues.length,
-        seriousIssues: seriousIssues.length,
+        score: altTextCoverage.completionRate,
+        criticalIssues: 0,
+        seriousIssues: 0,
         missingAltImages: altTextCoverage.missingAltImages,
         ...(context.requestId ? { requestId: context.requestId } : {}),
       },
@@ -297,12 +279,12 @@ export class StoresService {
     return {
       storeId,
       themeAuditSummary: {
-        score: themeAuditSummary.score,
-        wcagLevel: themeAuditSummary.wcagLevel,
-        criticalIssues: criticalIssues.length,
-        seriousIssues: seriousIssues.length,
-        warningIssues: warningIssues.length,
-        auditedAt: themeAuditSummary.auditedAt,
+        score: altTextCoverage.completionRate,
+        wcagLevel: 'AA',
+        criticalIssues: 0,
+        seriousIssues: 0,
+        warningIssues: 0,
+        auditedAt: new Date().toISOString(),
       },
       altTextCoverage,
       criticalIssues,

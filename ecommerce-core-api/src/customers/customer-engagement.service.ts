@@ -468,7 +468,7 @@ export class CustomerEngagementService {
   private buildRestockTrackingUrl(token: string): string {
     const apiBase = this.configService.get<string>('API_PUBLIC_BASE_URL', 'http://localhost:3000');
     const normalized = apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase;
-    return `${normalized}/sf/restock/track/${encodeURIComponent(token)}`;
+    return `${normalized}/app/restock/track/${encodeURIComponent(token)}`;
   }
 
   private getRestockConversionWindowDays(): number {

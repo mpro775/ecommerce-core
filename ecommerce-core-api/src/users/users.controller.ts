@@ -10,7 +10,6 @@ import type { AuthUser } from '../auth/interfaces/auth-user.interface';
 import { getRequestContext } from '../common/utils/request-context.util';
 import { RequirePermissions } from '../rbac/decorators/permissions.decorator';
 import { PermissionsGuard } from '../rbac/guards/permissions.guard';
-import { FeatureGuard, RequireFeature } from '../saas/guards/limits.guard';
 import { TenantGuard } from '../tenancy/guards/tenant.guard';
 import { AcceptInviteDto, ValidateInviteDto } from './dto/accept-invite.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -31,12 +30,12 @@ import type { AccessibilityPreferences } from './users.repository';
 @ApiTags('users')
 @ApiBearerAuth()
 @Controller('users')
-@UseGuards(AccessTokenGuard, TenantGuard, PermissionsGuard, FeatureGuard)
+@UseGuards(AccessTokenGuard, TenantGuard, PermissionsGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @RequireFeature('staff_management')
+
   @RequirePermissions(PERMISSIONS.usersRead)
   @ApiOkResponse({ description: 'List store users' })
   async list(@CurrentUser() user: AuthUser): Promise<UserProfileResponse[]> {
@@ -51,7 +50,7 @@ export class UsersController {
   }
 
   @Get('role-presets')
-  @RequireFeature('staff_management')
+
   @RequirePermissions(PERMISSIONS.usersRead)
   @ApiOkResponse({ description: 'List staff role presets and permission scopes' })
   listRolePresets(): StoreRolePreset[] {
@@ -59,7 +58,7 @@ export class UsersController {
   }
 
   @Get('invites')
-  @RequireFeature('staff_management')
+
   @RequirePermissions(PERMISSIONS.usersWrite)
   @ApiOkResponse({ description: 'List pending staff invites' })
   async listInvites(@CurrentUser() user: AuthUser): Promise<InviteResponse[]> {
@@ -67,7 +66,7 @@ export class UsersController {
   }
 
   @Patch(':userId/role')
-  @RequireFeature('staff_management')
+
   @RequirePermissions(PERMISSIONS.usersWrite)
   @ApiOkResponse({ description: 'Update user role and permissions' })
   async updateRole(
@@ -80,7 +79,7 @@ export class UsersController {
   }
 
   @Post('invite')
-  @RequireFeature('staff_management')
+
   @RequirePermissions(PERMISSIONS.usersWrite)
   @ApiOkResponse({ description: 'Invite a new staff member' })
   async inviteStaff(
@@ -92,7 +91,7 @@ export class UsersController {
   }
 
   @Patch(':userId/disable')
-  @RequireFeature('staff_management')
+
   @RequirePermissions(PERMISSIONS.usersWrite)
   @ApiOkResponse({ description: 'Disable a user account' })
   async disableUser(
@@ -104,7 +103,7 @@ export class UsersController {
   }
 
   @Patch(':userId/enable')
-  @RequireFeature('staff_management')
+
   @RequirePermissions(PERMISSIONS.usersWrite)
   @ApiOkResponse({ description: 'Enable a user account' })
   async enableUser(
@@ -148,7 +147,7 @@ export class UsersController {
   }
 
   @Delete(':userId')
-  @RequireFeature('staff_management')
+
   @RequirePermissions(PERMISSIONS.usersWrite)
   @ApiOkResponse({ description: 'Delete a user from the store' })
   async deleteUser(
@@ -160,7 +159,7 @@ export class UsersController {
   }
 
   @Delete('invites/:inviteId')
-  @RequireFeature('staff_management')
+
   @RequirePermissions(PERMISSIONS.usersWrite)
   @ApiOkResponse({ description: 'Cancel a pending invite' })
   async cancelInvite(
@@ -172,7 +171,7 @@ export class UsersController {
   }
 
   @Post('invites/:inviteId/resend')
-  @RequireFeature('staff_management')
+
   @RequirePermissions(PERMISSIONS.usersWrite)
   @ApiOkResponse({ description: 'Resend an invite' })
   async resendInvite(

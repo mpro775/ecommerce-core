@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AuditService } from '../audit/audit.service';
 import type { AuthUser } from '../auth/interfaces/auth-user.interface';
 import type { RequestContextData } from '../common/utils/request-context.util';
-import { SaasService } from '../saas/saas.service';
+import { StoreCapabilitiesService } from '../store-capabilities/store-capabilities.service';
 import { WebhookSigningService } from '../security/webhook-signing.service';
 import type { CreateWebhookEndpointDto } from './dto/create-webhook-endpoint.dto';
 import type { ListWebhookDeliveriesQueryDto } from './dto/list-webhook-deliveries-query.dto';
@@ -54,7 +54,7 @@ export class WebhooksService {
     private readonly webhooksRepository: WebhooksRepository,
     private readonly webhookSigningService: WebhookSigningService,
     private readonly auditService: AuditService,
-    private readonly saasService: SaasService,
+    private readonly storeCapabilitiesService: StoreCapabilitiesService,
   ) {}
 
   async createEndpoint(
@@ -197,11 +197,15 @@ export class WebhooksService {
     eventType: WebhookEventType,
     data: Record<string, unknown>,
   ): Promise<number> {
-    await this.saasService.assertFeatureEnabled(storeId, 'webhooks_access');
+    await this.storeCapabilitiesService.assertFeatureEnabled(storeId, 'webhooks_access');
     this.assertEventTypes([eventType]);
     const endpoints = await this.webhooksRepository.listActiveEndpointsForEvent(storeId, eventType);
     if (endpoints.length > 0) {
-      await this.saasService.assertMetricCanGrow(storeId, 'webhooks.monthly', endpoints.length);
+      await this.storeCapabilitiesService.assertMetricCanGrow(
+        storeId,
+        'webhooks.monthly',
+        endpoints.length,
+      );
     }
 
     for (const endpoint of endpoints) {
@@ -232,10 +236,15 @@ export class WebhooksService {
     }
 
     if (endpoints.length > 0) {
-      await this.saasService.recordUsageEvent(storeId, 'webhooks.monthly', endpoints.length, {
-        eventType,
-        endpoints: endpoints.length,
-      });
+      await this.storeCapabilitiesService.recordUsageEvent(
+        storeId,
+        'webhooks.monthly',
+        endpoints.length,
+        {
+          eventType,
+          endpoints: endpoints.length,
+        },
+      );
     }
 
     return endpoints.length;

@@ -6,8 +6,6 @@ import {
   DescriptionIcon,
   InventoryIcon,
   PeopleIcon,
-  ReceiptLongIcon,
-  SearchIcon,
   SettingsIcon,
   ShoppingCartIcon,
   StorefrontIcon,
@@ -81,10 +79,7 @@ export const MERCHANT_NAV_ITEMS: MerchantNavItem[] = [
     label: 'واجهة المتجر',
     icon: <StorefrontIcon />,
     children: [
-      { key: 'seo', label: 'SEO', icon: <SearchIcon /> },
       { key: 'storePages', label: 'Store Pages', icon: <DescriptionIcon /> },
-      { key: 'themes', label: 'التصميم والقوالب' },
-      { key: 'domains', label: 'النطاقات' },
     ],
   },
   {
@@ -118,7 +113,6 @@ export const MERCHANT_NAV_ITEMS: MerchantNavItem[] = [
     children: [
       { key: 'store', label: 'إعدادات المتجر', icon: <SettingsIcon /> },
       { key: 'payments', label: 'المدفوعات' },
-      { key: 'billing', label: 'الفوترة والاشتراك', icon: <ReceiptLongIcon /> },
       { key: 'shipping', label: 'التوصيل والاستلام' },
       { key: 'staff', label: 'فريق العمل' },
       { key: 'webhooks', label: 'الربط المتقدم API' },

@@ -15,7 +15,7 @@ import type { MarkAffiliatePayoutPaidDto } from './dto/mark-affiliate-payout-pai
 import type { UpdateAffiliateDto } from './dto/update-affiliate.dto';
 import type { UpdateAffiliateSettingsDto } from './dto/update-affiliate-settings.dto';
 import { AffiliatesRepository, type Queryable } from './affiliates.repository';
-import { SaasService } from '../saas/saas.service';
+import { StoreCapabilitiesService } from '../store-capabilities/store-capabilities.service';
 
 export interface AffiliateResponse {
   id: string;
@@ -88,7 +88,7 @@ export class AffiliatesService {
   constructor(
     private readonly affiliatesRepository: AffiliatesRepository,
     private readonly auditService: AuditService,
-    private readonly saasService: SaasService,
+    private readonly storeCapabilitiesService: StoreCapabilitiesService,
   ) {}
 
   async getSettings(currentUser: AuthUser): Promise<AffiliateSettingsResponse> {
@@ -418,7 +418,9 @@ export class AffiliatesService {
     request: Request,
     input: { storeId: string; sessionId: string },
   ): Promise<void> {
-    if (!(await this.saasService.isFeatureEnabled(input.storeId, 'affiliate_program'))) {
+    if (
+      !(await this.storeCapabilitiesService.isFeatureEnabled(input.storeId, 'affiliate_program'))
+    ) {
       return;
     }
 
@@ -453,7 +455,9 @@ export class AffiliatesService {
     sessionId: string | null;
     couponCode?: string | null;
   }): Promise<CheckoutAttributionResolution | null> {
-    if (!(await this.saasService.isFeatureEnabled(input.storeId, 'affiliate_program'))) {
+    if (
+      !(await this.storeCapabilitiesService.isFeatureEnabled(input.storeId, 'affiliate_program'))
+    ) {
       return null;
     }
 

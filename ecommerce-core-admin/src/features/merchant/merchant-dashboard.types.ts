@@ -16,7 +16,6 @@ export type MerchantTabKey =
   | 'reportsSales'
   | 'reportsInventory'
   | 'store'
-  | 'seo'
   | 'storePages'
   | 'products'
   | 'inventory'
@@ -40,11 +39,8 @@ export type MerchantTabKey =
   | 'coupons'
   | 'affiliates'
   | 'loyalty'
-  | 'themes'
-  | 'domains'
   | 'staff'
-  | 'webhooks'
-  | 'billing';
+  | 'webhooks';
 
 export type MerchantRequester = <T>(
   path: string,

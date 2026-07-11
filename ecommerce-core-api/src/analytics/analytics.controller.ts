@@ -6,7 +6,6 @@ import { AccessTokenGuard } from '../auth/guards/access-token.guard';
 import type { AuthUser } from '../auth/interfaces/auth-user.interface';
 import { RequirePermissions } from '../rbac/decorators/permissions.decorator';
 import { PermissionsGuard } from '../rbac/guards/permissions.guard';
-import { FeatureGuard, RequireFeature } from '../saas/guards/limits.guard';
 import { TenantGuard } from '../tenancy/guards/tenant.guard';
 import { AnalyticsAnomaliesQueryDto } from './dto/analytics-anomalies-query.dto';
 import { AnalyticsGovernanceQueryDto } from './dto/analytics-governance-query.dto';
@@ -41,8 +40,8 @@ import {
 @ApiTags('analytics')
 @ApiBearerAuth()
 @Controller('analytics')
-@RequireFeature('advanced_analytics')
-@UseGuards(AccessTokenGuard, TenantGuard, PermissionsGuard, FeatureGuard)
+
+@UseGuards(AccessTokenGuard, TenantGuard, PermissionsGuard)
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 

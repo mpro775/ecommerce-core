@@ -21,13 +21,12 @@ import { CheckoutDto } from './dto/checkout.dto';
 import { CheckoutQuoteDto } from './dto/checkout-quote.dto';
 import { ListStorefrontFiltersQueryDto } from './dto/list-storefront-filters-query.dto';
 import { TrackStorefrontEventDto } from './dto/track-storefront-event.dto';
-import { ThemeQueryDto } from './dto/theme-query.dto';
 import { TrackOrderQueryDto } from './dto/track-order-query.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { StorefrontService } from './storefront.service';
 
 @ApiTags('storefront')
-@Controller('sf')
+@Controller('app')
 @Public()
 export class StorefrontController {
   constructor(private readonly storefrontService: StorefrontService) {}
@@ -60,21 +59,6 @@ export class StorefrontController {
   @ApiOkResponse({ description: 'Get storefront product details' })
   async getProduct(@Req() request: Request, @Param('slug') slug: string) {
     return this.storefrontService.getProductDetails(request, slug);
-  }
-
-  @Get('theme')
-  @ApiOkResponse({ description: 'Get storefront theme config (published or preview)' })
-  async getTheme(
-    @Req() request: Request,
-    @Query() query: ThemeQueryDto,
-    @Res({ passthrough: true }) response: Response,
-  ) {
-    if (query.previewToken) {
-      response.setHeader('cache-control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      response.setHeader('pragma', 'no-cache');
-      response.setHeader('expires', '0');
-    }
-    return this.storefrontService.getTheme(request, query);
   }
 
   @Get('policies')

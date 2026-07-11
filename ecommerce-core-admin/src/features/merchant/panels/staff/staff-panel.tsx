@@ -64,12 +64,6 @@ const PERMISSION_LABELS: Record<string, string> = {
   'loyalty:read': 'عرض الولاء',
   'loyalty:write': 'إدارة الولاء',
   'loyalty:adjust': 'تعديل نقاط الولاء',
-  'themes:read': 'عرض التصميم',
-  'themes:write': 'تعديل التصميم',
-  'themes:publish': 'نشر التصميم',
-  'themes:rollback': 'استرجاع التصميم',
-  'domains:read': 'عرض النطاقات',
-  'domains:write': 'إدارة النطاقات',
 };
 
 const PERMISSION_GROUPS = [
@@ -104,17 +98,6 @@ const PERMISSION_GROUPS = [
   {
     title: 'العملاء والدعم',
     permissions: ['customers:read', 'customers:write'],
-  },
-  {
-    title: 'التصميم والنطاقات',
-    permissions: [
-      'themes:read',
-      'themes:write',
-      'themes:publish',
-      'themes:rollback',
-      'domains:read',
-      'domains:write',
-    ],
   },
   {
     title: 'الولاء',

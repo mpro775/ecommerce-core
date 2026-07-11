@@ -7,7 +7,7 @@ import {
 import { AuditService } from '../audit/audit.service';
 import type { AuthUser } from '../auth/interfaces/auth-user.interface';
 import type { RequestContextData } from '../common/utils/request-context.util';
-import { SaasService } from '../saas/saas.service';
+import { StoreCapabilitiesService } from '../store-capabilities/store-capabilities.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 import type { CreateLoyaltyAdjustmentDto } from './dto/create-loyalty-adjustment.dto';
 import type { ListLoyaltyLedgerQueryDto } from './dto/list-loyalty-ledger-query.dto';
@@ -72,7 +72,7 @@ export class LoyaltyService {
     private readonly loyaltyRepository: LoyaltyRepository,
     private readonly auditService: AuditService,
     private readonly webhooksService: WebhooksService,
-    private readonly saasService: SaasService,
+    private readonly storeCapabilitiesService: StoreCapabilitiesService,
   ) {}
 
   async getSettings(currentUser: AuthUser): Promise<LoyaltySettingsResponse> {
@@ -81,7 +81,7 @@ export class LoyaltyService {
   }
 
   async getSettingsByStoreId(storeId: string): Promise<LoyaltySettingsResponse> {
-    if (!(await this.saasService.isFeatureEnabled(storeId, 'loyalty_program'))) {
+    if (!(await this.storeCapabilitiesService.isFeatureEnabled(storeId, 'loyalty_program'))) {
       return {
         isEnabled: false,
         redeemRatePoints: 100,
@@ -441,7 +441,7 @@ export class LoyaltyService {
       return { pointsRedeemed: 0, discountAmount: 0 };
     }
 
-    await this.saasService.assertFeatureEnabled(input.storeId, 'loyalty_program');
+    await this.storeCapabilitiesService.assertFeatureEnabled(input.storeId, 'loyalty_program');
     const program = await this.ensureProgram(input.storeId);
     if (!program.is_enabled) {
       throw new BadRequestException('Loyalty program is not enabled');
@@ -504,7 +504,7 @@ export class LoyaltyService {
       createdByStoreUserId: string | null;
     },
   ): Promise<void> {
-    if (!(await this.saasService.isFeatureEnabled(input.storeId, 'loyalty_program'))) {
+    if (!(await this.storeCapabilitiesService.isFeatureEnabled(input.storeId, 'loyalty_program'))) {
       return;
     }
 
@@ -683,7 +683,7 @@ export class LoyaltyService {
   }
 
   async publishWalletUpdated(storeId: string, customerId: string): Promise<void> {
-    if (!(await this.saasService.isFeatureEnabled(storeId, 'loyalty_program'))) {
+    if (!(await this.storeCapabilitiesService.isFeatureEnabled(storeId, 'loyalty_program'))) {
       return;
     }
 

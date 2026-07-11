@@ -19,7 +19,6 @@ import type { AuthUser } from '../auth/interfaces/auth-user.interface';
 import { getRequestContext } from '../common/utils/request-context.util';
 import { RequirePermissions } from '../rbac/decorators/permissions.decorator';
 import { PermissionsGuard } from '../rbac/guards/permissions.guard';
-import { FeatureGuard, RequireFeature } from '../saas/guards/limits.guard';
 import { TenantGuard } from '../tenancy/guards/tenant.guard';
 import { CreateLoyaltyAdjustmentDto } from './dto/create-loyalty-adjustment.dto';
 import { ListLoyaltyLedgerQueryDto } from './dto/list-loyalty-ledger-query.dto';
@@ -30,8 +29,8 @@ import { LoyaltyService } from './loyalty.service';
 @ApiTags('loyalty')
 @ApiBearerAuth()
 @Controller('loyalty')
-@RequireFeature('loyalty_program')
-@UseGuards(AccessTokenGuard, TenantGuard, PermissionsGuard, FeatureGuard)
+
+@UseGuards(AccessTokenGuard, TenantGuard, PermissionsGuard)
 export class LoyaltyController {
   constructor(private readonly loyaltyService: LoyaltyService) {}
 

@@ -11,7 +11,7 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthUser } from '../auth/interfaces/auth-user.interface';
 import type { RequestContextData } from '../common/utils/request-context.util';
 import { OutboxService } from '../messaging/outbox.service';
-import { SaasService } from '../saas/saas.service';
+import { StoreCapabilitiesService } from '../store-capabilities/store-capabilities.service';
 import { ALLOWED_UPLOAD_MIME_TYPES, MAX_UPLOAD_BYTES } from './media.constants';
 import type { ConfirmMediaUploadDto } from './dto/confirm-media-upload.dto';
 import type { PresignMediaUploadDto } from './dto/presign-media-upload.dto';
@@ -71,7 +71,7 @@ export class MediaService {
     private readonly outboxService: OutboxService,
     private readonly auditService: AuditService,
     @Inject(STORAGE_ADAPTER) private readonly storageAdapter: StorageAdapter,
-    private readonly saasService: SaasService,
+    private readonly storeCapabilitiesService: StoreCapabilitiesService,
   ) {}
 
   async createPresignedUpload(
@@ -288,7 +288,11 @@ export class MediaService {
   private async assertStorageLimit(storeId: string, additionalBytes: number): Promise<void> {
     const additionalMb = Math.ceil(additionalBytes / (1024 * 1024));
     try {
-      await this.saasService.assertMetricCanGrow(storeId, 'storage.used', additionalMb);
+      await this.storeCapabilitiesService.assertMetricCanGrow(
+        storeId,
+        'storage.used',
+        additionalMb,
+      );
     } catch (error) {
       if (error instanceof UnprocessableEntityException) {
         throw new UnprocessableEntityException(

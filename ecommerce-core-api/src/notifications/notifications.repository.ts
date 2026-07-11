@@ -6,7 +6,7 @@ import type {
   MerchantNotificationSeverity,
 } from './notification-events.registry';
 
-export type NotificationRecipientType = 'store' | 'store_user' | 'customer' | 'platform';
+export type NotificationRecipientType = 'store' | 'store_user' | 'customer';
 export type NotificationStatus = 'unread' | 'read';
 
 export interface NotificationInboxRecord {
