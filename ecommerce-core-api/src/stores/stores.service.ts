@@ -11,12 +11,19 @@ import type { AuthUser } from '../auth/interfaces/auth-user.interface';
 import { MediaService, type AltTextCoverageResponse } from '../media/media.service';
 import { CurrencyService, type StoreCurrencyResponse } from '../currency/currency.service';
 import {
+  CURRENCY_PRICING_MODES,
+  CURRENCY_SYMBOL_POSITIONS,
   DEFAULT_STORE_COUNTRY,
+  ORDER_CONFIRMATION_MODES,
   STORE_BUSINESS_CATEGORIES,
   STORE_CURRENCY_CODES,
+  STORE_LANGUAGES,
   STORE_SOCIAL_LINK_KEYS,
   STORE_TIMEZONES,
   STORE_WORKING_DAYS,
+  STOCK_DEDUCTION_TIMINGS,
+  TAX_PRICE_MODES,
+  WAREHOUSE_SELECTION_MODES,
   YEMEN_GOVERNORATES,
 } from './constants/store-settings.constants';
 import {
@@ -25,7 +32,11 @@ import {
   normalizeStoreSlug,
 } from './constants/store-slug.constants';
 import type { UpdateStoreSettingsDto } from './dto/update-store-settings.dto';
-import { StoresRepository, type StoreSettingsRecord } from './stores.repository';
+import {
+  StoresRepository,
+  type StoreGeneralSettingsRecord,
+  type StoreSettingsRecord,
+} from './stores.repository';
 
 interface WorkingHoursSlot {
   open: string;
@@ -39,6 +50,88 @@ interface WorkingHoursDay {
 }
 
 type SocialLinks = Partial<Record<(typeof STORE_SOCIAL_LINK_KEYS)[number], string | null>>;
+
+type JsonObject = Record<string, unknown>;
+
+export interface StoreProfileSettingsResponse {
+  nameAr: string | null;
+  nameEn: string | null;
+  descriptionAr: string | null;
+  descriptionEn: string | null;
+  logo: string | null;
+  icon: string | null;
+  primaryColor: string;
+  secondaryColor: string;
+  supportPhone: string | null;
+  supportEmail: string | null;
+  whatsapp: string | null;
+  country: string;
+  timezone: string;
+  defaultLanguage: (typeof STORE_LANGUAGES)[number];
+  supportedLanguages: Array<(typeof STORE_LANGUAGES)[number]>;
+}
+
+export interface StoreCurrencySettingsResponse {
+  baseCurrencyCode: 'YER';
+  defaultCurrencyCode: string;
+  supportedCurrencies: string[];
+  decimalDigits: number;
+  decimalDigitsByCurrency: Record<string, number>;
+  symbolPosition: (typeof CURRENCY_SYMBOL_POSITIONS)[number];
+  pricingMode: (typeof CURRENCY_PRICING_MODES)[number];
+  fixedPrices: JsonObject;
+  exchangeRates: Record<string, number>;
+}
+
+export interface StoreOrderSettingsResponse {
+  minimumOrderValue: number;
+  allowGuestCheckout: boolean;
+  allowOrderCancellation: boolean;
+  cancellationWindowMinutes: number;
+  allowReturns: boolean;
+  returnWindowDays: number;
+  confirmationMode: (typeof ORDER_CONFIRMATION_MODES)[number];
+  stockDeductionTiming: (typeof STOCK_DEDUCTION_TIMINGS)[number];
+  orderNumberPrefix: string;
+}
+
+export interface StoreInventorySettingsResponse {
+  allowOutOfStockSales: boolean;
+  lowStockAlertThreshold: number;
+  reserveInventory: boolean;
+  reservationTtlMinutes: number;
+  warehouseSelectionMode: (typeof WAREHOUSE_SELECTION_MODES)[number];
+  warehousePriority: string[];
+  restoreStockOnCancellation: boolean;
+}
+
+export interface StoreTaxSettingsResponse {
+  enabled: boolean;
+  defaultRate: number;
+  priceMode: (typeof TAX_PRICE_MODES)[number];
+  exemptions: string[];
+  categoryRates: JsonObject;
+  taxNumber: string | null;
+}
+
+export interface StoreMobileAppConfigResponse {
+  latestAndroidVersion: string | null;
+  latestIosVersion: string | null;
+  minimumAndroidVersion: string | null;
+  minimumIosVersion: string | null;
+  forceUpdate: boolean;
+  maintenanceMode: boolean;
+  maintenanceMessage: string | null;
+  storeLinks: JsonObject;
+  socialLinks: JsonObject;
+  enabledFeatures: JsonObject;
+  showRegistration: boolean;
+  showOtp: boolean;
+  showWallet: boolean;
+  showLoyalty: boolean;
+  showAffiliates: boolean;
+  showReviews: boolean;
+}
 
 export interface StoreSettingsResponse {
   id: string;
@@ -74,6 +167,12 @@ export interface StoreSettingsResponse {
   privacyPolicy: string | null;
   termsAndConditions: string | null;
   loyaltyPolicy: string | null;
+  profile: StoreProfileSettingsResponse;
+  currencySettings: StoreCurrencySettingsResponse;
+  orderSettings: StoreOrderSettingsResponse;
+  inventorySettings: StoreInventorySettingsResponse;
+  taxSettings: StoreTaxSettingsResponse;
+  mobileAppConfig: StoreMobileAppConfigResponse;
 }
 
 export interface StoreSettingsOptionsResponse {
@@ -84,6 +183,7 @@ export interface StoreSettingsOptionsResponse {
   workingDays: readonly string[];
   socialPlatforms: readonly string[];
   businessCategories: readonly string[];
+  languages: readonly string[];
 }
 
 export interface StoreSlugAvailabilityResponse {
@@ -119,12 +219,19 @@ export class StoresService {
   ) {}
 
   async getSettings(currentUser: AuthUser): Promise<StoreSettingsResponse> {
-    const store = await this.storesRepository.findById(currentUser.storeId);
+    return this.getSettingsByStoreId(currentUser.storeId);
+  }
+
+  async getSettingsByStoreId(storeId: string): Promise<StoreSettingsResponse> {
+    const store = await this.storesRepository.findById(storeId);
     if (!store) {
       throw new NotFoundException('Store not found');
     }
-    const currencies = await this.currencyService.listStoreCurrencies(currentUser.storeId);
-    return this.toResponse(store, currencies);
+    const [currencies, generalSettings] = await Promise.all([
+      this.currencyService.listStoreCurrencies(storeId),
+      this.storesRepository.findGeneralSettings(storeId),
+    ]);
+    return this.toResponse(store, currencies, generalSettings);
   }
 
   getSettingsOptions(): StoreSettingsOptionsResponse {
@@ -136,6 +243,7 @@ export class StoresService {
       workingDays: STORE_WORKING_DAYS,
       socialPlatforms: STORE_SOCIAL_LINK_KEYS,
       businessCategories: STORE_BUSINESS_CATEGORIES,
+      languages: STORE_LANGUAGES,
     };
   }
 
@@ -186,9 +294,16 @@ export class StoresService {
 
     const payload = await this.buildUpdatePayload(current, input);
     const updated = await this.storesRepository.updateSettings(payload);
+    const [currencies, currentGeneralSettings] = await Promise.all([
+      this.currencyService.listStoreCurrencies(currentUser.storeId),
+      this.storesRepository.findGeneralSettings(currentUser.storeId),
+    ]);
+    const updatedGeneralSettings = await this.storesRepository.updateGeneralSettings(
+      this.buildGeneralSettingsPayload(updated, currentGeneralSettings, currencies, input),
+    );
     await this.logSettingsUpdate(currentUser, context);
 
-    return this.toResponse(updated);
+    return this.toResponse(updated, currencies, updatedGeneralSettings);
   }
 
   async getCurrencies(currentUser: AuthUser): Promise<{
@@ -472,8 +587,21 @@ export class StoresService {
   private toResponse(
     store: StoreSettingsRecord,
     currencies: StoreCurrencyResponse[] = [],
+    generalSettings: StoreGeneralSettingsRecord | null = null,
   ): StoreSettingsResponse {
     const defaultCurrency = currencies.find((currency) => currency.isDefault);
+    const profile = this.toProfileSettingsResponse(store, generalSettings?.profile_settings);
+    const currencySettings = this.toCurrencySettingsResponse(
+      store,
+      currencies,
+      generalSettings?.currency_settings,
+    );
+    const orderSettings = this.toOrderSettingsResponse(generalSettings?.order_settings);
+    const inventorySettings = this.toInventorySettingsResponse(
+      generalSettings?.inventory_settings,
+    );
+    const taxSettings = this.toTaxSettingsResponse(generalSettings?.tax_settings);
+    const mobileAppConfig = this.toMobileAppConfigResponse(generalSettings?.mobile_app_config);
     return {
       id: store.id,
       name: store.name,
@@ -509,7 +637,592 @@ export class StoresService {
       privacyPolicy: store.privacy_policy,
       termsAndConditions: store.terms_of_service,
       loyaltyPolicy: store.loyalty_policy,
+      profile,
+      currencySettings,
+      orderSettings,
+      inventorySettings,
+      taxSettings,
+      mobileAppConfig,
     };
+  }
+
+  private buildGeneralSettingsPayload(
+    store: StoreSettingsRecord,
+    current: StoreGeneralSettingsRecord | null,
+    currencies: StoreCurrencyResponse[],
+    input: UpdateStoreSettingsDto,
+  ): {
+    storeId: string;
+    profileSettings: JsonObject;
+    currencySettings: JsonObject;
+    orderSettings: JsonObject;
+    inventorySettings: JsonObject;
+    taxSettings: JsonObject;
+    mobileAppConfig: JsonObject;
+  } {
+    const profileSettings = this.mergeSettings(
+      this.defaultProfileSettings(store),
+      current?.profile_settings,
+      {
+        ...this.pickDefined(input.profile),
+        ...(input.profile?.icon !== undefined ? { iconUrl: input.profile.icon } : {}),
+        ...(this.hasOwn(input, 'phone') ? { supportPhone: store.phone } : {}),
+        ...(this.hasOwn(input, 'faviconUrl') ? { iconUrl: store.favicon_url } : {}),
+      },
+    );
+    const currencySettings = this.mergeSettings(
+      this.defaultCurrencySettings(currencies, store.default_currency_code ?? store.currency_code),
+      current?.currency_settings,
+      {
+        ...this.pickDefined(input.currencySettings),
+        ...(this.hasOwn(input, 'currencyCode') ? { defaultCurrencyCode: store.currency_code } : {}),
+      },
+    );
+    const orderSettings = this.mergeSettings(
+      this.defaultOrderSettings(),
+      current?.order_settings,
+      this.pickDefined(input.orderSettings),
+    );
+    const inventorySettings = this.mergeSettings(
+      this.defaultInventorySettings(),
+      current?.inventory_settings,
+      this.pickDefined(input.inventorySettings),
+    );
+    const taxSettings = this.mergeSettings(
+      this.defaultTaxSettings(),
+      current?.tax_settings,
+      this.pickDefined(input.taxSettings),
+    );
+    const mobileAppConfig = this.mergeSettings(
+      this.defaultMobileAppConfig(profileSettings),
+      current?.mobile_app_config,
+      this.pickDefined(input.mobileAppConfig),
+    );
+
+    return {
+      storeId: store.id,
+      profileSettings: this.normalizeProfileSettings(profileSettings),
+      currencySettings: this.normalizeCurrencySettings(currencySettings, currencies, store),
+      orderSettings: this.normalizeOrderSettings(orderSettings),
+      inventorySettings: this.normalizeInventorySettings(inventorySettings),
+      taxSettings: this.normalizeTaxSettings(taxSettings),
+      mobileAppConfig: this.normalizeMobileAppConfig(mobileAppConfig),
+    };
+  }
+
+  private toProfileSettingsResponse(
+    store: StoreSettingsRecord,
+    settings: JsonObject | undefined,
+  ): StoreProfileSettingsResponse {
+    const normalized = this.normalizeProfileSettings(
+      this.mergeSettings(this.defaultProfileSettings(store), settings),
+    );
+    return {
+      nameAr: store.name_ar ?? store.name,
+      nameEn: store.name_en,
+      descriptionAr: store.description_ar,
+      descriptionEn: store.description_en,
+      logo: store.logo_url,
+      icon: this.readString(normalized, 'iconUrl', store.favicon_url ?? store.logo_url),
+      primaryColor: this.readColor(normalized, 'primaryColor', '#111827'),
+      secondaryColor: this.readColor(normalized, 'secondaryColor', '#F59E0B'),
+      supportPhone: this.readString(normalized, 'supportPhone', store.phone),
+      supportEmail: this.readString(normalized, 'supportEmail', null),
+      whatsapp: this.readString(
+        normalized,
+        'whatsapp',
+        typeof store.social_links?.whatsapp === 'string' ? store.social_links.whatsapp : null,
+      ),
+      country: this.normalizeCountry(store.country),
+      timezone: store.timezone,
+      defaultLanguage: this.readEnum(normalized, 'defaultLanguage', STORE_LANGUAGES, 'ar'),
+      supportedLanguages: this.readEnumArray(
+        normalized,
+        'supportedLanguages',
+        STORE_LANGUAGES,
+        [...STORE_LANGUAGES],
+      ),
+    };
+  }
+
+  private toCurrencySettingsResponse(
+    store: StoreSettingsRecord,
+    currencies: StoreCurrencyResponse[],
+    settings: JsonObject | undefined,
+  ): StoreCurrencySettingsResponse {
+    const normalized = this.normalizeCurrencySettings(
+      this.mergeSettings(
+        this.defaultCurrencySettings(currencies, store.default_currency_code ?? store.currency_code),
+        settings,
+      ),
+      currencies,
+      store,
+    );
+    const supportedCurrencies = currencies.map((currency) => currency.currencyCode);
+    const defaultCurrency =
+      currencies.find((currency) => currency.isDefault) ??
+      currencies.find((currency) => currency.currencyCode === store.default_currency_code) ??
+      currencies[0];
+    const decimalDigitsByCurrency = Object.fromEntries(
+      currencies.map((currency) => [currency.currencyCode, currency.decimalDigits]),
+    );
+    const exchangeRates = Object.fromEntries(
+      currencies.map((currency) => [currency.currencyCode, currency.yerPerUnit]),
+    );
+
+    return {
+      baseCurrencyCode: 'YER',
+      defaultCurrencyCode:
+        defaultCurrency?.currencyCode ??
+        this.readString(normalized, 'defaultCurrencyCode', store.default_currency_code) ??
+        'YER',
+      supportedCurrencies:
+        supportedCurrencies.length > 0
+          ? supportedCurrencies
+          : this.readStringArray(normalized, 'supportedCurrencies', ['YER']),
+      decimalDigits: defaultCurrency?.decimalDigits ?? this.readNumber(normalized, 'decimalDigits', 0),
+      decimalDigitsByCurrency,
+      symbolPosition: this.readEnum(
+        normalized,
+        'symbolPosition',
+        CURRENCY_SYMBOL_POSITIONS,
+        'after',
+      ),
+      pricingMode: this.readEnum(normalized, 'pricingMode', CURRENCY_PRICING_MODES, 'exchange_rate'),
+      fixedPrices: this.readObject(normalized, 'fixedPrices', {}),
+      exchangeRates: {
+        ...this.readNumberRecord(normalized, 'exchangeRates'),
+        ...exchangeRates,
+      },
+    };
+  }
+
+  private toOrderSettingsResponse(settings: JsonObject | undefined): StoreOrderSettingsResponse {
+    const normalized = this.normalizeOrderSettings(
+      this.mergeSettings(this.defaultOrderSettings(), settings),
+    );
+    return {
+      minimumOrderValue: this.readNumber(normalized, 'minimumOrderValue', 0),
+      allowGuestCheckout: this.readBoolean(normalized, 'allowGuestCheckout', true),
+      allowOrderCancellation: this.readBoolean(normalized, 'allowOrderCancellation', true),
+      cancellationWindowMinutes: this.readNumber(normalized, 'cancellationWindowMinutes', 60),
+      allowReturns: this.readBoolean(normalized, 'allowReturns', true),
+      returnWindowDays: this.readNumber(normalized, 'returnWindowDays', 7),
+      confirmationMode: this.readEnum(
+        normalized,
+        'confirmationMode',
+        ORDER_CONFIRMATION_MODES,
+        'manual',
+      ),
+      stockDeductionTiming: this.readEnum(
+        normalized,
+        'stockDeductionTiming',
+        STOCK_DEDUCTION_TIMINGS,
+        'confirmation',
+      ),
+      orderNumberPrefix: this.readString(normalized, 'orderNumberPrefix', 'ORD') ?? 'ORD',
+    };
+  }
+
+  private toInventorySettingsResponse(
+    settings: JsonObject | undefined,
+  ): StoreInventorySettingsResponse {
+    const normalized = this.normalizeInventorySettings(
+      this.mergeSettings(this.defaultInventorySettings(), settings),
+    );
+    return {
+      allowOutOfStockSales: this.readBoolean(normalized, 'allowOutOfStockSales', false),
+      lowStockAlertThreshold: this.readNumber(normalized, 'lowStockAlertThreshold', 5),
+      reserveInventory: this.readBoolean(normalized, 'reserveInventory', true),
+      reservationTtlMinutes: this.readNumber(normalized, 'reservationTtlMinutes', 15),
+      warehouseSelectionMode: this.readEnum(
+        normalized,
+        'warehouseSelectionMode',
+        WAREHOUSE_SELECTION_MODES,
+        'priority',
+      ),
+      warehousePriority: this.readStringArray(normalized, 'warehousePriority', []),
+      restoreStockOnCancellation: this.readBoolean(normalized, 'restoreStockOnCancellation', true),
+    };
+  }
+
+  private toTaxSettingsResponse(settings: JsonObject | undefined): StoreTaxSettingsResponse {
+    const normalized = this.normalizeTaxSettings(
+      this.mergeSettings(this.defaultTaxSettings(), settings),
+    );
+    return {
+      enabled: this.readBoolean(normalized, 'enabled', false),
+      defaultRate: this.readNumber(normalized, 'defaultRate', 0),
+      priceMode: this.readEnum(normalized, 'priceMode', TAX_PRICE_MODES, 'exclusive'),
+      exemptions: this.readStringArray(normalized, 'exemptions', []),
+      categoryRates: this.readObject(normalized, 'categoryRates', {}),
+      taxNumber: this.readString(normalized, 'taxNumber', null),
+    };
+  }
+
+  private toMobileAppConfigResponse(settings: JsonObject | undefined): StoreMobileAppConfigResponse {
+    const normalized = this.normalizeMobileAppConfig(
+      this.mergeSettings(this.defaultMobileAppConfig({}), settings),
+    );
+    return {
+      latestAndroidVersion: this.readString(normalized, 'latestAndroidVersion', null),
+      latestIosVersion: this.readString(normalized, 'latestIosVersion', null),
+      minimumAndroidVersion: this.readString(normalized, 'minimumAndroidVersion', null),
+      minimumIosVersion: this.readString(normalized, 'minimumIosVersion', null),
+      forceUpdate: this.readBoolean(normalized, 'forceUpdate', false),
+      maintenanceMode: this.readBoolean(normalized, 'maintenanceMode', false),
+      maintenanceMessage: this.readString(normalized, 'maintenanceMessage', null),
+      storeLinks: this.readObject(normalized, 'storeLinks', {}),
+      socialLinks: this.readObject(normalized, 'socialLinks', {}),
+      enabledFeatures: this.readObject(normalized, 'enabledFeatures', {}),
+      showRegistration: this.readBoolean(normalized, 'showRegistration', true),
+      showOtp: this.readBoolean(normalized, 'showOtp', true),
+      showWallet: this.readBoolean(normalized, 'showWallet', false),
+      showLoyalty: this.readBoolean(normalized, 'showLoyalty', true),
+      showAffiliates: this.readBoolean(normalized, 'showAffiliates', false),
+      showReviews: this.readBoolean(normalized, 'showReviews', true),
+    };
+  }
+
+  private defaultProfileSettings(store: StoreSettingsRecord): JsonObject {
+    return {
+      iconUrl: store.favicon_url ?? store.logo_url,
+      primaryColor: '#111827',
+      secondaryColor: '#F59E0B',
+      supportPhone: store.phone,
+      supportEmail: null,
+      whatsapp: typeof store.social_links?.whatsapp === 'string' ? store.social_links.whatsapp : null,
+      defaultLanguage: 'ar',
+      supportedLanguages: ['ar', 'en'],
+    };
+  }
+
+  private defaultCurrencySettings(
+    currencies: StoreCurrencyResponse[],
+    defaultCurrencyCode: string | null,
+  ): JsonObject {
+    return {
+      defaultCurrencyCode: defaultCurrencyCode ?? 'YER',
+      supportedCurrencies:
+        currencies.length > 0 ? currencies.map((currency) => currency.currencyCode) : ['YER'],
+      decimalDigits:
+        currencies.find((currency) => currency.currencyCode === defaultCurrencyCode)?.decimalDigits ??
+        0,
+      symbolPosition: 'after',
+      pricingMode: 'exchange_rate',
+      fixedPrices: {},
+      exchangeRates: Object.fromEntries(
+        currencies.map((currency) => [currency.currencyCode, currency.yerPerUnit]),
+      ),
+    };
+  }
+
+  private defaultOrderSettings(): JsonObject {
+    return {
+      minimumOrderValue: 0,
+      allowGuestCheckout: true,
+      allowOrderCancellation: true,
+      cancellationWindowMinutes: 60,
+      allowReturns: true,
+      returnWindowDays: 7,
+      confirmationMode: 'manual',
+      stockDeductionTiming: 'confirmation',
+      orderNumberPrefix: 'ORD',
+    };
+  }
+
+  private defaultInventorySettings(): JsonObject {
+    return {
+      allowOutOfStockSales: false,
+      lowStockAlertThreshold: 5,
+      reserveInventory: true,
+      reservationTtlMinutes: 15,
+      warehouseSelectionMode: 'priority',
+      warehousePriority: [],
+      restoreStockOnCancellation: true,
+    };
+  }
+
+  private defaultTaxSettings(): JsonObject {
+    return {
+      enabled: false,
+      defaultRate: 0,
+      priceMode: 'exclusive',
+      exemptions: [],
+      categoryRates: {},
+      taxNumber: null,
+    };
+  }
+
+  private defaultMobileAppConfig(profileSettings: JsonObject): JsonObject {
+    return {
+      latestAndroidVersion: null,
+      latestIosVersion: null,
+      minimumAndroidVersion: null,
+      minimumIosVersion: null,
+      forceUpdate: false,
+      maintenanceMode: false,
+      maintenanceMessage: null,
+      storeLinks: {},
+      socialLinks: {
+        whatsapp: this.readString(profileSettings, 'whatsapp', null),
+      },
+      enabledFeatures: {
+        registration: true,
+        otp: true,
+        wallet: false,
+        loyalty: true,
+        affiliates: false,
+        reviews: true,
+      },
+      showRegistration: true,
+      showOtp: true,
+      showWallet: false,
+      showLoyalty: true,
+      showAffiliates: false,
+      showReviews: true,
+    };
+  }
+
+  private mergeSettings(
+    defaults: JsonObject,
+    current?: JsonObject | null,
+    updates?: JsonObject | null,
+  ): JsonObject {
+    return {
+      ...defaults,
+      ...this.toPlainObject(current),
+      ...this.toPlainObject(updates),
+    };
+  }
+
+  private pickDefined(value: unknown): JsonObject {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(value as JsonObject).filter(([, entryValue]) => entryValue !== undefined),
+    );
+  }
+
+  private normalizeProfileSettings(settings: JsonObject): JsonObject {
+    const defaultLanguage = this.readEnum(settings, 'defaultLanguage', STORE_LANGUAGES, 'ar');
+    const supportedLanguages = this.readEnumArray(
+      settings,
+      'supportedLanguages',
+      STORE_LANGUAGES,
+      [...STORE_LANGUAGES],
+    );
+    return {
+      iconUrl: this.readString(settings, 'iconUrl', null),
+      primaryColor: this.readColor(settings, 'primaryColor', '#111827'),
+      secondaryColor: this.readColor(settings, 'secondaryColor', '#F59E0B'),
+      supportPhone: this.readString(settings, 'supportPhone', null),
+      supportEmail: this.readString(settings, 'supportEmail', null),
+      whatsapp: this.readString(settings, 'whatsapp', null),
+      defaultLanguage,
+      supportedLanguages: supportedLanguages.includes(defaultLanguage)
+        ? supportedLanguages
+        : [defaultLanguage, ...supportedLanguages],
+    };
+  }
+
+  private normalizeCurrencySettings(
+    settings: JsonObject,
+    currencies: StoreCurrencyResponse[],
+    store: StoreSettingsRecord,
+  ): JsonObject {
+    const supportedCurrencies =
+      currencies.length > 0
+        ? currencies.map((currency) => currency.currencyCode)
+        : this.readStringArray(settings, 'supportedCurrencies', ['YER']);
+    const defaultCurrencyCode =
+      currencies.find((currency) => currency.isDefault)?.currencyCode ??
+      this.readString(settings, 'defaultCurrencyCode', store.default_currency_code) ??
+      'YER';
+
+    return {
+      defaultCurrencyCode,
+      supportedCurrencies: supportedCurrencies.includes(defaultCurrencyCode)
+        ? supportedCurrencies
+        : [defaultCurrencyCode, ...supportedCurrencies],
+      decimalDigits: this.readNumber(settings, 'decimalDigits', 0),
+      symbolPosition: this.readEnum(settings, 'symbolPosition', CURRENCY_SYMBOL_POSITIONS, 'after'),
+      pricingMode: this.readEnum(settings, 'pricingMode', CURRENCY_PRICING_MODES, 'exchange_rate'),
+      fixedPrices: this.readObject(settings, 'fixedPrices', {}),
+      exchangeRates: {
+        ...this.readNumberRecord(settings, 'exchangeRates'),
+        ...Object.fromEntries(currencies.map((currency) => [currency.currencyCode, currency.yerPerUnit])),
+      },
+    };
+  }
+
+  private normalizeOrderSettings(settings: JsonObject): JsonObject {
+    return {
+      minimumOrderValue: Math.max(0, this.readNumber(settings, 'minimumOrderValue', 0)),
+      allowGuestCheckout: this.readBoolean(settings, 'allowGuestCheckout', true),
+      allowOrderCancellation: this.readBoolean(settings, 'allowOrderCancellation', true),
+      cancellationWindowMinutes: Math.max(
+        0,
+        Math.trunc(this.readNumber(settings, 'cancellationWindowMinutes', 60)),
+      ),
+      allowReturns: this.readBoolean(settings, 'allowReturns', true),
+      returnWindowDays: Math.max(0, Math.trunc(this.readNumber(settings, 'returnWindowDays', 7))),
+      confirmationMode: this.readEnum(
+        settings,
+        'confirmationMode',
+        ORDER_CONFIRMATION_MODES,
+        'manual',
+      ),
+      stockDeductionTiming: this.readEnum(
+        settings,
+        'stockDeductionTiming',
+        STOCK_DEDUCTION_TIMINGS,
+        'confirmation',
+      ),
+      orderNumberPrefix: this.readString(settings, 'orderNumberPrefix', 'ORD') ?? 'ORD',
+    };
+  }
+
+  private normalizeInventorySettings(settings: JsonObject): JsonObject {
+    return {
+      allowOutOfStockSales: this.readBoolean(settings, 'allowOutOfStockSales', false),
+      lowStockAlertThreshold: Math.max(
+        0,
+        Math.trunc(this.readNumber(settings, 'lowStockAlertThreshold', 5)),
+      ),
+      reserveInventory: this.readBoolean(settings, 'reserveInventory', true),
+      reservationTtlMinutes: Math.max(
+        1,
+        Math.trunc(this.readNumber(settings, 'reservationTtlMinutes', 15)),
+      ),
+      warehouseSelectionMode: this.readEnum(
+        settings,
+        'warehouseSelectionMode',
+        WAREHOUSE_SELECTION_MODES,
+        'priority',
+      ),
+      warehousePriority: this.readStringArray(settings, 'warehousePriority', []),
+      restoreStockOnCancellation: this.readBoolean(settings, 'restoreStockOnCancellation', true),
+    };
+  }
+
+  private normalizeTaxSettings(settings: JsonObject): JsonObject {
+    return {
+      enabled: this.readBoolean(settings, 'enabled', false),
+      defaultRate: Math.max(0, Math.min(100, this.readNumber(settings, 'defaultRate', 0))),
+      priceMode: this.readEnum(settings, 'priceMode', TAX_PRICE_MODES, 'exclusive'),
+      exemptions: this.readStringArray(settings, 'exemptions', []),
+      categoryRates: this.readObject(settings, 'categoryRates', {}),
+      taxNumber: this.readString(settings, 'taxNumber', null),
+    };
+  }
+
+  private normalizeMobileAppConfig(settings: JsonObject): JsonObject {
+    return {
+      latestAndroidVersion: this.readString(settings, 'latestAndroidVersion', null),
+      latestIosVersion: this.readString(settings, 'latestIosVersion', null),
+      minimumAndroidVersion: this.readString(settings, 'minimumAndroidVersion', null),
+      minimumIosVersion: this.readString(settings, 'minimumIosVersion', null),
+      forceUpdate: this.readBoolean(settings, 'forceUpdate', false),
+      maintenanceMode: this.readBoolean(settings, 'maintenanceMode', false),
+      maintenanceMessage: this.readString(settings, 'maintenanceMessage', null),
+      storeLinks: this.readObject(settings, 'storeLinks', {}),
+      socialLinks: this.readObject(settings, 'socialLinks', {}),
+      enabledFeatures: this.readObject(settings, 'enabledFeatures', {}),
+      showRegistration: this.readBoolean(settings, 'showRegistration', true),
+      showOtp: this.readBoolean(settings, 'showOtp', true),
+      showWallet: this.readBoolean(settings, 'showWallet', false),
+      showLoyalty: this.readBoolean(settings, 'showLoyalty', true),
+      showAffiliates: this.readBoolean(settings, 'showAffiliates', false),
+      showReviews: this.readBoolean(settings, 'showReviews', true),
+    };
+  }
+
+  private toPlainObject(value: unknown): JsonObject {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {};
+    }
+    return value as JsonObject;
+  }
+
+  private readString(settings: JsonObject, key: string, fallback: string | null): string | null {
+    const value = settings[key];
+    if (typeof value !== 'string') {
+      return fallback;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : fallback;
+  }
+
+  private readColor(settings: JsonObject, key: string, fallback: string): string {
+    const value = this.readString(settings, key, fallback) ?? fallback;
+    return /^#[A-Fa-f0-9]{6}$/.test(value) ? value : fallback;
+  }
+
+  private readNumber(settings: JsonObject, key: string, fallback: number): number {
+    const value = settings[key];
+    const numeric = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(numeric) ? numeric : fallback;
+  }
+
+  private readBoolean(settings: JsonObject, key: string, fallback: boolean): boolean {
+    return typeof settings[key] === 'boolean' ? settings[key] : fallback;
+  }
+
+  private readObject(settings: JsonObject, key: string, fallback: JsonObject): JsonObject {
+    const value = settings[key];
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return fallback;
+    }
+    return value as JsonObject;
+  }
+
+  private readStringArray(settings: JsonObject, key: string, fallback: string[]): string[] {
+    const value = settings[key];
+    if (!Array.isArray(value)) {
+      return fallback;
+    }
+    return value
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .map((item) => item.trim());
+  }
+
+  private readNumberRecord(settings: JsonObject, key: string): Record<string, number> {
+    const value = this.readObject(settings, key, {});
+    return Object.fromEntries(
+      Object.entries(value)
+        .map(([entryKey, entryValue]) => [entryKey, Number(entryValue)] as const)
+        .filter(([, entryValue]) => Number.isFinite(entryValue)),
+    );
+  }
+
+  private readEnum<T extends readonly string[]>(
+    settings: JsonObject,
+    key: string,
+    allowed: T,
+    fallback: T[number],
+  ): T[number] {
+    const value = settings[key];
+    return typeof value === 'string' && allowed.includes(value) ? value : fallback;
+  }
+
+  private readEnumArray<T extends readonly string[]>(
+    settings: JsonObject,
+    key: string,
+    allowed: T,
+    fallback: T[number][],
+  ): T[number][] {
+    const value = settings[key];
+    if (!Array.isArray(value)) {
+      return fallback;
+    }
+
+    const filtered = value.filter(
+      (item): item is T[number] => typeof item === 'string' && allowed.includes(item),
+    );
+    return filtered.length > 0 ? [...new Set(filtered)] : fallback;
   }
 
   private hasOwn(input: UpdateStoreSettingsDto, key: keyof UpdateStoreSettingsDto): boolean {

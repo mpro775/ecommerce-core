@@ -83,3 +83,17 @@ export const STORE_BUSINESS_CATEGORIES = [
   'health_wellness',
   'other',
 ] as const;
+
+export const STORE_LANGUAGES = ['ar', 'en'] as const;
+
+export const CURRENCY_SYMBOL_POSITIONS = ['before', 'after'] as const;
+
+export const CURRENCY_PRICING_MODES = ['fixed', 'exchange_rate'] as const;
+
+export const ORDER_CONFIRMATION_MODES = ['automatic', 'manual'] as const;
+
+export const STOCK_DEDUCTION_TIMINGS = ['creation', 'confirmation'] as const;
+
+export const WAREHOUSE_SELECTION_MODES = ['automatic', 'manual', 'priority'] as const;
+
+export const TAX_PRICE_MODES = ['inclusive', 'exclusive'] as const;

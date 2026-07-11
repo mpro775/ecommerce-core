@@ -50,6 +50,16 @@ export interface StorePublicRecord {
   is_suspended: boolean;
 }
 
+export interface StoreGeneralSettingsRecord {
+  store_id: string;
+  profile_settings: Record<string, unknown>;
+  currency_settings: Record<string, unknown>;
+  order_settings: Record<string, unknown>;
+  inventory_settings: Record<string, unknown>;
+  tax_settings: Record<string, unknown>;
+  mobile_app_config: Record<string, unknown>;
+}
+
 @Injectable()
 export class StoresRepository {
   constructor(private readonly databaseService: DatabaseService) {}
@@ -67,6 +77,22 @@ export class StoresRepository {
                , loyalty_policy
         FROM stores
         WHERE id = $1
+        LIMIT 1
+      `,
+      [storeId],
+    );
+
+    return result.rows[0] ?? null;
+  }
+
+  async findGeneralSettings(storeId: string): Promise<StoreGeneralSettingsRecord | null> {
+    await this.ensureGeneralSettings(storeId);
+    const result = await this.databaseService.db.query<StoreGeneralSettingsRecord>(
+      `
+        SELECT store_id, profile_settings, currency_settings, order_settings,
+               inventory_settings, tax_settings, mobile_app_config
+        FROM store_general_settings
+        WHERE store_id = $1
         LIMIT 1
       `,
       [storeId],
@@ -228,6 +254,52 @@ export class StoresRepository {
     return result.rows[0] as StoreSettingsRecord;
   }
 
+  async updateGeneralSettings(input: {
+    storeId: string;
+    profileSettings: Record<string, unknown>;
+    currencySettings: Record<string, unknown>;
+    orderSettings: Record<string, unknown>;
+    inventorySettings: Record<string, unknown>;
+    taxSettings: Record<string, unknown>;
+    mobileAppConfig: Record<string, unknown>;
+  }): Promise<StoreGeneralSettingsRecord> {
+    const result = await this.databaseService.db.query<StoreGeneralSettingsRecord>(
+      `
+        INSERT INTO store_general_settings (
+          store_id,
+          profile_settings,
+          currency_settings,
+          order_settings,
+          inventory_settings,
+          tax_settings,
+          mobile_app_config
+        )
+        VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5::jsonb, $6::jsonb, $7::jsonb)
+        ON CONFLICT (store_id) DO UPDATE
+        SET profile_settings = EXCLUDED.profile_settings,
+            currency_settings = EXCLUDED.currency_settings,
+            order_settings = EXCLUDED.order_settings,
+            inventory_settings = EXCLUDED.inventory_settings,
+            tax_settings = EXCLUDED.tax_settings,
+            mobile_app_config = EXCLUDED.mobile_app_config,
+            updated_at = NOW()
+        RETURNING store_id, profile_settings, currency_settings, order_settings,
+                  inventory_settings, tax_settings, mobile_app_config
+      `,
+      [
+        input.storeId,
+        JSON.stringify(input.profileSettings),
+        JSON.stringify(input.currencySettings),
+        JSON.stringify(input.orderSettings),
+        JSON.stringify(input.inventorySettings),
+        JSON.stringify(input.taxSettings),
+        JSON.stringify(input.mobileAppConfig),
+      ],
+    );
+
+    return result.rows[0] as StoreGeneralSettingsRecord;
+  }
+
   async findStoreBySlug(storeSlug: string): Promise<{ id: string; slug: string } | null> {
     const result = await this.databaseService.db.query<{ id: string; slug: string }>(
       `
@@ -240,5 +312,39 @@ export class StoresRepository {
     );
 
     return result.rows[0] ?? null;
+  }
+
+  private async ensureGeneralSettings(storeId: string): Promise<void> {
+    await this.databaseService.db.query(
+      `
+        INSERT INTO store_general_settings (
+          store_id,
+          profile_settings,
+          currency_settings
+        )
+        SELECT
+          id,
+          jsonb_build_object(
+            'iconUrl', COALESCE(favicon_url, logo_url),
+            'primaryColor', '#111827',
+            'secondaryColor', '#F59E0B',
+            'supportPhone', phone,
+            'supportEmail', NULL,
+            'whatsapp', social_links->>'whatsapp',
+            'defaultLanguage', 'ar',
+            'supportedLanguages', jsonb_build_array('ar', 'en')
+          ),
+          jsonb_build_object(
+            'symbolPosition', 'after',
+            'pricingMode', 'exchange_rate',
+            'fixedPrices', '{}'::jsonb,
+            'exchangeRates', '{}'::jsonb
+          )
+        FROM stores
+        WHERE id = $1
+        ON CONFLICT (store_id) DO NOTHING
+      `,
+      [storeId],
+    );
   }
 }
