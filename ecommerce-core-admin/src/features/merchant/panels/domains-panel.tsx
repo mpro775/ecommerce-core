@@ -1,0 +1,1 @@
+export { DomainsPanel } from './domains';
